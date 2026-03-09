@@ -2471,8 +2471,13 @@ async function showLatestNotice(e) {
     // 캐시가 있으면 즉시 렌더링 (로딩창 띄우지 않음)
     latestPost = cachedPosts.data[0];
   } else {
-    // 캐시가 없으면 로딩 표시 후 API 호출
-    showLoading();
+    // 캐시가 없으면 모달 로딩 UI 표시 (showLoading은 page-container를 덮어쓰므로 사용 금지)
+    document.getElementById('modal-container').innerHTML = `
+      <div class="modal-overlay">
+        <div class="loading-spinner" style="border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; width: 40px; height: 40px; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    `;
+
     try {
       const result = await api('getPosts', { boardId: noticeBoard.boardId, page: 1, pageSize: 1 });
       if (result.success && result.data && result.data.length > 0) {
@@ -2480,14 +2485,14 @@ async function showLatestNotice(e) {
         LocalCache.set(cacheKey, result, 5); // 결과 캐싱
       }
     } catch (error) {
-      hideLoading();
+      document.getElementById('modal-container').innerHTML = '';
       showToast('공지사항을 불러오는 중 오류가 발생했습니다.', 'error');
       return;
     }
-    hideLoading();
   }
 
   if (!latestPost) {
+    document.getElementById('modal-container').innerHTML = '';
     showToast('등록된 공지사항이 없습니다.', 'info');
     return;
   }
