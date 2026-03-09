@@ -656,6 +656,8 @@ async function loadDashboard() {
   // 약간의 딜레이를 주어 UI가 완전히 그려진 후 걷어냄
   setTimeout(() => {
     hideDashboardLoading();
+    // [신규] 홈 화면 렌더링 후 백그라운드에서 게시글 상세 요약 데이터 사전 캐싱
+    prefetchHomePosts(data);
   }, 300);
 
   console.timeEnd('loadDashboard');
@@ -703,6 +705,47 @@ function renderDashboard(data) {
          요청 내용: "'최근 영상, 최근 자료, 게시판'을 각 게시판 제목으로 대체하고..." -> 기존 섹션들 모두 대체 -->
     <!-- 추가적인 하단 게시판 요약(격자)은 요청에 의해 생략 -->
   `;
+}
+
+/**
+ * [신규] 홈 화면의 최근 게시글 상세 정보를 백그라운드에서 사전 캐싱
+ */
+async function prefetchHomePosts(dashboardData) {
+  if (!dashboardData || !dashboardData.boards) return;
+
+  const boardsWithDashboard = dashboardData.boards.filter(b => b.showOnDashboard);
+  const allRecentPosts = [];
+
+  boardsWithDashboard.forEach(board => {
+    if (board.recentPosts && board.recentPosts.length > 0) {
+      allRecentPosts.push(...board.recentPosts);
+    }
+  });
+
+  if (allRecentPosts.length === 0) return;
+
+  console.log(`Prefetching ${allRecentPosts.length} posts for instant access...`);
+
+  // 순차적으로 호출하여 서버 부하 방지
+  for (const post of allRecentPosts) {
+    const cacheKey = `post_detail_${post.postId}`;
+    // 이미 상세 정보가 캐시되어 있으면 건너뜀 (게시판 목록이나 최근 공지 등에서 캐시됐을 수 있음)
+    if (LocalCache.get(cacheKey)) continue;
+
+    try {
+      // 1초 간격으로 요청 (GAS 속도 제한 고려)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      api('getPostById', { postId: post.postId }).then(result => {
+        if (result.success) {
+          LocalCache.set(cacheKey, result.data, 10); // 10분간 상세 정보 캐싱
+          console.log(`Prefetched post detail: ${post.postId}`);
+        }
+      }).catch(e => console.warn(`Prefetch failed for post ${post.postId}`, e));
+    } catch (e) {
+      console.warn('Prefetch loop error', e);
+    }
+  }
 }
 
 // [수정] 심플 리스트 렌더링 헬퍼 - 콘텐츠 타입 아이콘 추가
@@ -912,11 +955,23 @@ async function loadPost(postId) {
 
   // B. 현재 게시판 목록 데이터 확인
   if (!cachedPost && App.currentBoardId) {
-    const boardCacheKey = `posts_${App.currentBoardId}_page1`; // 1페이지만 확인 (대부분 여기서 클릭함)
+    const boardCacheKey = `posts_${App.currentBoardId}_page1`;
     const boardData = LocalCache.get(boardCacheKey);
     if (boardData && boardData.data) {
       cachedPost = boardData.data.find(p => String(p.postId) === String(postId));
     }
+  }
+
+  // C. [신규] 사전 캐싱된 상세 정보 데이터 확인 (가장 완벽한 데이터)
+  const prefetchedDetail = LocalCache.get(`post_detail_${postId}`);
+  if (prefetchedDetail) {
+    console.log('Using PREFETCHED post detail for instant load:', postId);
+    await renderPostDetail(prefetchedDetail);
+    hideLoading();
+    // 상세 정보가 이미 완벽하므로 여기서 종료 (또는 백그라운드 갱신만 수행)
+    // 최신성 보장을 위해 백그라운드에서 getPostById를 호출하여 갱신할 수도 있음
+    updatePostDetailFromServerOptimized(postId);
+    return;
   }
 
   // 2. [최적화] 캐시 데이터가 있으면 즉시 렌더링 (첨부파일/댓글은 로딩 스피너)
@@ -1129,6 +1184,22 @@ function updatePostDetailFromServer(serverPost) {
   }
 }
 
+/**
+ * [신규] 사전 캐싱된 데이터 사용 시, 백그라운드에서 서버 데이터를 조회하여 갱신
+ */
+async function updatePostDetailFromServerOptimized(postId) {
+  try {
+    const result = await api('getPostById', { postId });
+    if (result.success) {
+      updatePostDetailFromServer(result.data);
+      // 캐시도 최신화
+      LocalCache.set(`post_detail_${postId}`, result.data, 10);
+    }
+  } catch (e) {
+    console.warn('Background update failed', e);
+  }
+}
+
 // ========== 좋아요 (기능 삭제됨) ==========
 // function toggleLike(postId) { ... }
 
@@ -1301,7 +1372,7 @@ async function showBoardModal(boardId = null, btnEvent = null) {
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-          <button class="btn btn-primary" onclick="saveBoard('${boardId || ''}')">${board ? '수정' : '추가'}</button>
+          <button class="btn btn-primary" id="save-board-btn" onclick="saveBoard('${boardId || ''}')">${board ? '수정' : '추가'}</button>
         </div>
       </div>
     </div>
@@ -1311,6 +1382,9 @@ async function showBoardModal(boardId = null, btnEvent = null) {
 }
 
 async function saveBoard(boardId) {
+  const btn = document.getElementById('save-board-btn');
+  if (btn && btn.disabled) return;
+
   const boardName = document.getElementById('modal-board-name').value.trim();
   const description = document.getElementById('modal-board-desc').value.trim();
   const showOnDashboard = document.getElementById('modal-board-show').checked;
@@ -1318,6 +1392,13 @@ async function saveBoard(boardId) {
   if (!boardName) {
     showToast('게시판명을 입력해주세요.', 'error');
     return;
+  }
+
+  // 버튼 비활성화 및 로딩 표시
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.originalText = btn.textContent;
+    btn.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px;"></span> 처리 중...';
   }
 
   let result;
@@ -1337,6 +1418,11 @@ async function saveBoard(boardId) {
     loadAdminBoards();
   } else {
     showToast(result.error, 'error');
+    // 버튼 복구
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.originalText || (boardId ? '수정' : '추가');
+    }
   }
 }
 
@@ -1589,6 +1675,13 @@ async function savePost(postId) {
     return;
   }
 
+  // 버튼 비활성화 및 로딩 표시
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.originalText = btn.textContent;
+    btn.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px;"></span> 처리 중...';
+  }
+
   // 파일 첨부 유효성 검사
   if (fileUrl && !fileName) {
     showToast('첨부 파일의 이름을 입력해주세요.', 'error');
@@ -1608,10 +1701,6 @@ async function savePost(postId) {
       fileType: fileType
     });
   }
-
-  // 버튼 비활성화 및 텍스트 변경
-  btn.disabled = true;
-  btn.textContent = '게시 중...';
 
   let result;
   // YouTube URL은 더 이상 사용하지 않음 (빈 문자열 전달)
