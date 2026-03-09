@@ -2419,7 +2419,12 @@ function showProfileTab() {
 }
 
 // [신규추가] 모바일 하단 탭바 기능 추가 - 불꽃(공지사항 팝업) 탭
-async function showLatestNotice() {
+async function showLatestNotice(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   // 현재 탭 활성화 유지 (불꽃 아이콘은 모달만 열기 때문에 페이지 변경 안함)
 
   // 1. 공지사항 게시판의 boardId 찾기
@@ -2464,27 +2469,27 @@ async function showLatestNotice() {
       return;
     }
 
-    // 3. 팝업(모달) 렌더링
+    // 3. 팝업(모달) 렌더링 - 높이와 여백 축소
     const modalHtml = `
       <div class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal modal-lg" onclick="event.stopPropagation()">
-          <div class="modal-header">
-            <h3 class="modal-title">📢 최신 공지사항</h3>
+        <div class="modal modal-lg" style="margin: auto 16px;" onclick="event.stopPropagation()">
+          <div class="modal-header" style="padding: 16px 20px; min-height: 50px;">
+            <h3 class="modal-title" style="font-size: 16px;">📢 최신 공지사항</h3>
             <button class="modal-close" onclick="closeModal()">×</button>
           </div>
-          <div class="modal-body">
-            <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">${escapeHtml(latestPost.title)}</h2>
-            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          <div class="modal-body" style="padding: 16px 20px; max-height: 60vh; overflow-y: auto;">
+            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">${escapeHtml(latestPost.title)}</h2>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
               ${formatDate(latestPost.createdAt)} | 조회수 ${latestPost.viewCount || 0}
             </div>
-            <hr style="border:0; border-top:1px solid var(--border); margin-bottom: 16px;">
-            <div style="line-height: 1.6; font-size: 15px; color: var(--text-primary); white-space: pre-line;">
+            <hr style="border:0; border-top:1px solid var(--border); margin-bottom: 12px;">
+            <div style="line-height: 1.5; font-size: 14px; color: var(--text-primary); white-space: pre-line;">
               ${escapeHtml(latestPost.content)}
             </div>
           </div>
-          <div class="modal-footer" style="justify-content: center;">
-             <button class="btn btn-primary" style="width: 100%; max-width: 200px;" onclick="closeModal(); navigateTo('post', {postId:'${latestPost.postId}'});">자세히 보기</button>
-             <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+          <div class="modal-footer" style="padding: 12px 20px; justify-content: center;">
+             <button type="button" class="btn btn-primary" style="width: 100%; max-width: 180px; padding: 10px;" onclick="closeModal(); navigateTo('post', {postId:'${latestPost.postId}'});">자세히 보기</button>
+             <button type="button" class="btn btn-secondary" style="padding: 10px;" onclick="closeModal()">닫기</button>
           </div>
         </div>
       </div>
