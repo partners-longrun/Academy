@@ -2020,7 +2020,7 @@ function escapeHtml(text) {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>');
-    
+
   const div = document.createElement('div');
   div.textContent = processedText;
   return div.innerHTML;
@@ -2389,7 +2389,7 @@ function showSearchTab() {
   }, 100);
 }
 
-// [UI개선] 내정보 탭
+// [UI개선] 모바일 하단 탭바 기능 추가 - 나의정보 탭
 function showProfileTab() {
   window.scrollTo(0, 0);
   updateTabBar('profile');
@@ -2416,6 +2416,132 @@ function showProfileTab() {
       </div>
     </div>
   `;
+}
+
+// [신규추가] 모바일 하단 탭바 기능 추가 - 불꽃(공지사항 팝업) 탭
+async function showLatestNotice() {
+  // 현재 탭 활성화 유지 (불꽃 아이콘은 모달만 열기 때문에 페이지 변경 안함)
+
+  // 1. 공지사항 게시판의 boardId 찾기
+  let noticeBoard = App.boards ? App.boards.find(b => b.boardName === '공지사항') : null;
+
+  if (!noticeBoard) {
+    const cached = sessionStorage.getItem('boardList');
+    if (cached) {
+      const boards = JSON.parse(cached);
+      noticeBoard = boards.find(b => b.boardName === '공지사항');
+    }
+  }
+
+  if (!noticeBoard) {
+    showToast('공지사항 게시판을 찾을 수 없습니다.', 'error');
+    return;
+  }
+
+  showLoading();
+
+  // 2. 공지사항 게시글 목록 조회 (1페이지, 1개)
+  try {
+    // 캐시 확인 시도
+    let latestPost = null;
+    const cacheKey = `posts_${noticeBoard.boardId}_page1`;
+    const cachedPosts = LocalCache.get(cacheKey);
+
+    if (cachedPosts && cachedPosts.data && cachedPosts.data.length > 0) {
+      latestPost = cachedPosts.data[0];
+    } else {
+      const result = await api('getPosts', { boardId: noticeBoard.boardId, page: 1, pageSize: 1 });
+      if (result.success && result.data && result.data.length > 0) {
+        latestPost = result.data[0];
+        LocalCache.set(cacheKey, result, 5); // 결과 캐싱
+      }
+    }
+
+    hideLoading();
+
+    if (!latestPost) {
+      showToast('등록된 공지사항이 없습니다.', 'info');
+      return;
+    }
+
+    // 3. 팝업(모달) 렌더링
+    const modalHtml = `
+      <div class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal modal-lg" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h3 class="modal-title">📢 최신 공지사항</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">${escapeHtml(latestPost.title)}</h2>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+              ${formatDate(latestPost.createdAt)} | 조회수 ${latestPost.viewCount || 0}
+            </div>
+            <hr style="border:0; border-top:1px solid var(--border); margin-bottom: 16px;">
+            <div style="line-height: 1.6; font-size: 15px; color: var(--text-primary); white-space: pre-line;">
+              ${escapeHtml(latestPost.content)}
+            </div>
+          </div>
+          <div class="modal-footer" style="justify-content: center;">
+             <button class="btn btn-primary" style="width: 100%; max-width: 200px;" onclick="closeModal(); navigateTo('post', {postId:'${latestPost.postId}'});">자세히 보기</button>
+             <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('modal-container').innerHTML = modalHtml;
+
+  } catch (error) {
+    hideLoading();
+    showToast('공지사항을 불러오는 중 오류가 발생했습니다.', 'error');
+  }
+}
+
+// [신규추가] 모바일 하단 탭바 기능 추가 - 게시판 탭
+function showBoardsTab() {
+  window.scrollTo(0, 0);
+  updateTabBar('learn'); // id가 tab-learn 이므로 'learn'으로 매칭
+  const learnTab = document.getElementById('tab-learn');
+  if (learnTab) learnTab.classList.add('active');
+
+  setPageTitle('게시판 전체보기');
+  setBreadcrumb([{ label: '홈', page: 'dashboard' }]);
+
+  const container = document.getElementById('page-container');
+  container.classList.remove('page-fade-in');
+  void container.offsetWidth;
+  container.classList.add('page-fade-in');
+
+  // App.boards 또는 캐시에서 게시판 목록 가져오기
+  let boardsToDisplay = App.boards;
+  if (!boardsToDisplay || boardsToDisplay.length === 0) {
+    const cached = sessionStorage.getItem('boardList');
+    if (cached) {
+      boardsToDisplay = JSON.parse(cached);
+    }
+  }
+
+  if (!boardsToDisplay || boardsToDisplay.length === 0) {
+    container.innerHTML = `<div class="empty-state">게시판 정보를 불러올 수 없습니다.</div>`;
+    return;
+  }
+
+  const boardIcons = ['📚', '💼', '📊', '🎯', '📢', '🔖', '📌', '🗂️'];
+
+  container.innerHTML = `
+      <div class="dashboard-boards-grid">
+        ${boardsToDisplay.map((board, index) => `
+          <div class="dashboard-board-card" onclick="navigateTo('board', {boardId:'${board.boardId}'})">
+            <div class="board-icon-wrapper" style="font-size: 24px; margin-bottom: 8px;">
+               ${boardIcons[index % boardIcons.length]}
+            </div>
+            <h3 class="board-title" style="font-size: 15px; margin-bottom: 4px;">${escapeHtml(board.boardName)}</h3>
+            <p class="board-count" style="font-size: 12px; color: var(--text-secondary);">게시글 ${board.postCount || 0}개</p>
+          </div>
+        `).join('')}
+      </div>
+    `;
 }
 
 // ========== [신규] 성능 모니터링 ==========
