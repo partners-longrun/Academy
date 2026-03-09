@@ -656,8 +656,9 @@ async function loadDashboard() {
   // 약간의 딜레이를 주어 UI가 완전히 그려진 후 걷어냄
   setTimeout(() => {
     hideDashboardLoading();
-    // [신규] 홈 화면 렌더링 후 백그라운드에서 게시글 상세 요약 데이터 사전 캐싱
+    // [신규] 홈 화면 렌더링 후 백그라운드에서 게시글 상세 요약 데이터 및 게시판 목록 사전 캐싱
     prefetchHomePosts(data);
+    prefetchBoardLists(data);
   }, 300);
 
   console.timeEnd('loadDashboard');
@@ -744,6 +745,36 @@ async function prefetchHomePosts(dashboardData) {
       }).catch(e => console.warn(`Prefetch failed for post ${post.postId}`, e));
     } catch (e) {
       console.warn('Prefetch loop error', e);
+    }
+  }
+}
+
+/**
+ * [신규] 모든 게시판의 1페이지 목록을 백그라운드에서 사전 캐싱
+ */
+async function prefetchBoardLists(dashboardData) {
+  if (!dashboardData || !dashboardData.boards) return;
+
+  const boards = dashboardData.boards;
+  console.log(`Prefetching post lists for ${boards.length} boards...`);
+
+  for (const board of boards) {
+    const cacheKey = `posts_${board.boardId}_page1`;
+    // 이미 캐시되어 있으면 건너뜀
+    if (LocalCache.get(cacheKey)) continue;
+
+    try {
+      // 1.5초 간격으로 요청 (상세 정보 prefetch와 겹칠 수 있으므로 조금 더 여유 있게)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      api('getPosts', { boardId: board.boardId, page: 1, pageSize: 12 }).then(result => {
+        if (result.success) {
+          LocalCache.set(cacheKey, result, 5); // 5분간 목록 캐싱
+          console.log(`Prefetched board list: ${board.boardName}`);
+        }
+      }).catch(e => console.warn(`Prefetch failed for board ${board.boardName}`, e));
+    } catch (e) {
+      console.warn('Board list prefetch loop error', e);
     }
   }
 }
