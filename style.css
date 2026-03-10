@@ -2835,15 +2835,17 @@ select {
 }
 
 .hour-box.active {
-    background: var(--primary-light);
-    border-color: var(--primary);
+    background: #fff9c4;
+    /* 연한 노란색 (나머지 활성 시간대) */
+    border-color: #fdd835;
 }
 
-/* 피크 타임 강조 */
+/* 피크 타임 강조 (오렌지색 진하기 순) */
 .hour-box.top-1 {
-    background: var(--primary) !important;
-    border-color: var(--primary-dark);
-    box-shadow: 0 0 8px rgba(244, 116, 35, 0.4);
+    background: #ef6c00 !important;
+    /* 진한 오렌지 (1위) */
+    border-color: #e65100;
+    box-shadow: 0 0 8px rgba(239, 108, 0, 0.4);
     transform: scale(1.05);
     z-index: 1;
 }
@@ -2854,8 +2856,9 @@ select {
 }
 
 .hour-box.top-2 {
-    background: var(--primary-subtle) !important;
-    border-color: var(--primary);
+    background: #fb8c00 !important;
+    /* 중간 오렌지 (2위) */
+    border-color: #ef6c00;
 }
 
 .hour-box.top-2 .hour-box-label,
@@ -2864,8 +2867,14 @@ select {
 }
 
 .hour-box.top-3 {
-    background: #fff3e0 !important;
-    border-color: var(--primary-light);
+    background: #ffb74d !important;
+    /* 연한 오렌지 (3위) */
+    border-color: #ffa726;
+}
+
+.hour-box.top-3 .hour-box-label,
+.hour-box.top-3 .hour-box-value {
+    color: white !important;
 }
 
 
