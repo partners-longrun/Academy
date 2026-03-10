@@ -2839,6 +2839,36 @@ select {
     border-color: var(--primary);
 }
 
+/* 피크 타임 강조 */
+.hour-box.top-1 {
+    background: var(--primary) !important;
+    border-color: var(--primary-dark);
+    box-shadow: 0 0 8px rgba(244, 116, 35, 0.4);
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+.hour-box.top-1 .hour-box-label,
+.hour-box.top-1 .hour-box-value {
+    color: white !important;
+}
+
+.hour-box.top-2 {
+    background: var(--primary-subtle) !important;
+    border-color: var(--primary);
+}
+
+.hour-box.top-2 .hour-box-label,
+.hour-box.top-2 .hour-box-value {
+    color: white !important;
+}
+
+.hour-box.top-3 {
+    background: #fff3e0 !important;
+    border-color: var(--primary-light);
+}
+
+
 .hour-box-label {
     font-size: 10px;
     color: var(--text-secondary);
@@ -2862,6 +2892,7 @@ select {
         overflow-x: auto;
         padding-bottom: 40px;
     }
+
     .chart-bar-label {
         font-size: 9px;
     }
