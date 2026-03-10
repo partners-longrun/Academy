@@ -1794,36 +1794,206 @@ async function deletePost(postId) {
 }
 
 // ========== 관리자: 로그인 기록 ==========
-async function loadAdminLogs(page = 1) {
+// ========== 관리자: 로그인 기록 (대시보드 버전) ==========
+async function loadAdminLogs(params = {}) {
   if (!App.isAdmin) {
     showError('관리자 권한이 필요합니다.');
     return;
   }
 
-  setPageTitle('로그인 기록');
+  setPageTitle('로그인 기록 대시보드');
   showLoading();
 
-  const result = await api('getLoginLogs', { page, pageSize: 20 });
+  // 대시보드 데이터 및 최근 로그 동시 요청
+  const [dashResult, logsResult] = await Promise.all([
+    api('getLoginDashboardData', params),
+    api('getLoginLogs', { page: 1, pageSize: 15, ...params })
+  ]);
+
+  if (!dashResult.success) {
+    showError(dashResult.error || '데이터를 불러오는 중 오류가 발생했습니다.');
+    return;
+  }
+
+  const container = document.getElementById('page-container');
+  const dashData = dashResult.data;
+  const logs = logsResult.success ? logsResult.data : [];
+
+  // 날짜 기본값 설정 (오늘 기준 당월)
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const today = now.toISOString().split('T')[0];
+  
+  const startDate = params.startDate || firstDay;
+  const endDate = params.endDate || today;
+
+  container.innerHTML = `
+    <!-- 검색 필터 -->
+    <div class="dashboard-filter">
+      <div class="dashboard-filter-group">
+        <label class="dashboard-filter-label">기간 설정:</label>
+        <input type="date" id="dash-start-date" class="dashboard-filter-input" value="${startDate}">
+        <span>~</span>
+        <input type="date" id="dash-end-date" class="dashboard-filter-input" value="${endDate}">
+      </div>
+      <button class="btn btn-primary" onclick="searchLoginLogs()">조회</button>
+    </div>
+
+    <!-- 요약 카드 -->
+    <div class="stats-grid">
+      <div class="stat-card primary">
+        <div class="stat-label">금일 로그인</div>
+        <div class="stat-value">${dashData.summary.today || 0}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">당월 총 로그인</div>
+        <div class="stat-value">${dashData.summary.thisMonthTotal || 0}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">당월 활성 사용자</div>
+        <div class="stat-value">${dashData.summary.activeUsers || 0}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">전체 로그 수</div>
+        <div class="stat-value">${logsResult.pagination ? logsResult.pagination.total : '-'}</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;" class="dashboard-charts-row">
+      <!-- 최근 30일 추이 -->
+      <div class="dashboard-chart-container">
+        <div class="dashboard-chart-header">
+          <h3 class="dashboard-chart-title">최근 30일 로그인 추이</h3>
+        </div>
+        <div class="chart-bars">
+          ${renderTrendChart(dashData.dailyTrend)}
+        </div>
+      </div>
+
+      <!-- 시간대별 분포 -->
+      <div class="dashboard-chart-container">
+        <div class="dashboard-chart-header">
+          <h3 class="dashboard-chart-title">시간대별 분포 (전체)</h3>
+        </div>
+        <div class="hour-dist-grid">
+          ${dashData.hourDistribution.map(h => `
+            <div class="hour-box ${h.count > 0 ? 'active' : ''}" title="${h.hour}: ${h.count}회">
+              <span class="hour-box-label">${h.hour}</span>
+              <span class="hour-box-value">${h.count}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;" class="dashboard-tables-row">
+      <!-- 당월 로그인 사용자 목록 (사번순) -->
+      <section class="section">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 class="section-title" style="margin:0;">👤 당월 로그인 사용자 (${dashData.monthlyStats.length}명)</h3>
+        </div>
+        <div class="admin-table-container" style="max-height: 400px; overflow-y: auto;">
+          <table class="admin-table">
+            <thead style="position: sticky; top: 0; z-index: 1;">
+              <tr>
+                <th>사번</th>
+                <th>이름</th>
+                <th>로그인 횟수</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dashData.monthlyStats.map(s => `
+                <tr>
+                  <td><strong>${escapeHtml(s.employeeId)}</strong></td>
+                  <td>${escapeHtml(s.name)}</td>
+                  <td style="color: var(--primary); font-weight: 700;">${s.count}회</td>
+                </tr>
+              `).join('')}
+              ${dashData.monthlyStats.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding: 20px;">기록이 없습니다.</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 최근 로그인 기록 -->
+      <section class="section">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 class="section-title" style="margin:0;">📋 최근 로그인 상세</h3>
+        </div>
+        <div class="admin-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>일시</th>
+                <th>이름</th>
+                <th>사번</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logs.map(log => `
+                <tr>
+                  <td style="font-size: 13px;">${log.timestamp}</td>
+                  <td>${escapeHtml(log.name)}</td>
+                  <td>${escapeHtml(log.employeeId)}</td>
+                </tr>
+              `).join('')}
+              ${logs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding: 20px;">기록이 없습니다.</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top: 12px; text-align: right;">
+           <button class="btn btn-secondary btn-sm" onclick="showAllLoginLogs()">전체 보기 →</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderTrendChart(trendData) {
+  if (!trendData || trendData.length === 0) return '';
+  const max = Math.max(...trendData.map(d => d.count), 1);
+  
+  return trendData.map(d => {
+    const height = (d.count / max) * 100;
+    return `
+      <div class="chart-bar-wrapper">
+        <div class="chart-bar-value" style="opacity: ${d.count > 0 ? 1 : 0}">${d.count}</div>
+        <div class="chart-bar" style="height: ${height}%" title="${d.date}: ${d.count}회"></div>
+        <div class="chart-bar-label">${d.date}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function searchLoginLogs() {
+  const startDate = document.getElementById('dash-start-date').value;
+  const endDate = document.getElementById('dash-end-date').value;
+  
+  if (new Date(startDate) > new Date(endDate)) {
+      showToast('시작일이 종료일보다 늦을 수 없습니다.', 'error');
+      return;
+  }
+  
+  loadAdminLogs({ startDate, endDate });
+}
+
+async function showAllLoginLogs(page = 1, params = {}) {
+  showLoading();
+  setPageTitle('로그인 상세 기록');
+  
+  const result = await api('getLoginLogs', { page, pageSize: 20, ...params });
   if (!result.success) {
-    showError(result.error || '로그인 기록을 불러오는 중 오류가 발생했습니다.');
+    showError(result.error);
     return;
   }
 
   const container = document.getElementById('page-container');
   const logs = result.data || [];
 
-  if (logs.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
-        <div class="empty-state-title">로그인 기록이 없습니다</div>
-        <div class="empty-state-text">아직 기록된 로그인 내역이 없습니다.</div>
-      </div>
-    `;
-    return;
-  }
-
   container.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <button class="btn btn-secondary" onclick="loadAdminLogs()">← 대시보드로 돌아가기</button>
+    </div>
     <div class="admin-table-container">
       <table class="admin-table">
         <thead>
@@ -1837,16 +2007,16 @@ async function loadAdminLogs(page = 1) {
         <tbody>
           ${logs.map(log => `
             <tr>
-              <td>${log.timestamp || '-'}</td>
-              <td>${escapeHtml(log.name || '-')}</td>
-              <td>${escapeHtml(String(log.employeeId) || '-')}</td>
-              <td>${escapeHtml(log.ip || '-')}</td>
+              <td>${log.timestamp}</td>
+              <td>${escapeHtml(log.name)}</td>
+              <td>${escapeHtml(String(log.employeeId))}</td>
+              <td>${escapeHtml(log.ip)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     </div>
-    ${result.pagination ? renderPagination(result.pagination, 'loadAdminLogs') : ''}
+    ${renderPagination(result.pagination, 'showAllLoginLogs')}
   `;
 }
 
