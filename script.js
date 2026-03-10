@@ -1823,15 +1823,27 @@ async function loadAdminLogs(params = {}) {
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const today = now.toISOString().split('T')[0];
-  
+
   const startDate = params.startDate || firstDay;
   const endDate = params.endDate || today;
+
+  // 시간대별 상위 3개 파악
+  const sortedHours = [...dashData.hourDistribution].sort((a, b) => b.count - a.count);
+  const topCounts = [...new Set(sortedHours.map(h => h.count).filter(c => c > 0))].slice(0, 3);
 
   container.innerHTML = `
     <!-- 검색 필터 -->
     <div class="dashboard-filter">
       <div class="dashboard-filter-group">
         <label class="dashboard-filter-label">기간 설정:</label>
+        <select id="dash-date-preset" class="dashboard-filter-input" onchange="handleDatePresetChange(this.value)">
+          <option value="custom">직접 선택</option>
+          <option value="today">오늘</option>
+          <option value="week">최근 1주일</option>
+          <option value="month30">최근 30일</option>
+          <option value="thisMonth" selected>이번달</option>
+          <option value="lastMonth">지난달</option>
+        </select>
         <input type="date" id="dash-start-date" class="dashboard-filter-input" value="${startDate}">
         <span>~</span>
         <input type="date" id="dash-end-date" class="dashboard-filter-input" value="${endDate}">
@@ -1876,18 +1888,25 @@ async function loadAdminLogs(params = {}) {
           <h3 class="dashboard-chart-title">시간대별 분포 (전체)</h3>
         </div>
         <div class="hour-dist-grid">
-          ${dashData.hourDistribution.map(h => `
-            <div class="hour-box ${h.count > 0 ? 'active' : ''}" title="${h.hour}: ${h.count}회">
-              <span class="hour-box-label">${h.hour}</span>
-              <span class="hour-box-value">${h.count}</span>
-            </div>
-          `).join('')}
+          ${dashData.hourDistribution.map(h => {
+    let rankClass = '';
+    if (h.count > 0) {
+      const rankOrder = topCounts.indexOf(h.count);
+      if (rankOrder !== -1) rankClass = `top-${rankOrder + 1}`;
+    }
+    return `
+              <div class="hour-box ${h.count > 0 ? 'active' : ''} ${rankClass}" title="${h.hour}: ${h.count}회">
+                <span class="hour-box-label">${h.hour}</span>
+                <span class="hour-box-value">${h.count}</span>
+              </div>
+            `;
+  }).join('')}
         </div>
       </div>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;" class="dashboard-tables-row">
-      <!-- 당월 로그인 사용자 목록 (사번순) -->
+      <!-- 당월 로그인 사용자 목록 (횟수순) -->
       <section class="section">
         <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 class="section-title" style="margin:0;">👤 당월 로그인 사용자 (${dashData.monthlyStats.length}명)</h3>
@@ -1904,7 +1923,7 @@ async function loadAdminLogs(params = {}) {
             <tbody>
               ${dashData.monthlyStats.map(s => `
                 <tr>
-                  <td><strong>${escapeHtml(s.employeeId)}</strong></td>
+                  <td>${escapeHtml(s.employeeId)}</td>
                   <td>${escapeHtml(s.name)}</td>
                   <td style="color: var(--primary); font-weight: 700;">${s.count}회</td>
                 </tr>
@@ -1952,7 +1971,7 @@ async function loadAdminLogs(params = {}) {
 function renderTrendChart(trendData) {
   if (!trendData || trendData.length === 0) return '';
   const max = Math.max(...trendData.map(d => d.count), 1);
-  
+
   return trendData.map(d => {
     const height = (d.count / max) * 100;
     return `
@@ -1965,22 +1984,75 @@ function renderTrendChart(trendData) {
   }).join('');
 }
 
+function handleDatePresetChange(preset) {
+  if (preset === 'custom') return;
+
+  const startInput = document.getElementById('dash-start-date');
+  const endInput = document.getElementById('dash-end-date');
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+
+  // 날짜 계산을 위해 시간 정보 제거 (00:00:00 기준)
+  now.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  switch (preset) {
+    case 'today':
+      start = new Date(now);
+      end = new Date(now);
+      break;
+    case 'week':
+      start.setDate(now.getDate() - 6); // 오늘 포함 7일
+      end = new Date(now);
+      break;
+    case 'month30':
+      start.setDate(now.getDate() - 29); // 오늘 포함 30일
+      end = new Date(now);
+      break;
+    case 'thisMonth': {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now);
+      break;
+    }
+    case 'lastMonth': {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+      break;
+    }
+    default:
+      return;
+  }
+
+  // 로컬 시간대 반영하여 YYYY-MM-DD 형식으로 변환
+  const formatDate = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  startInput.value = formatDate(start);
+  endInput.value = formatDate(end);
+}
+
 async function searchLoginLogs() {
   const startDate = document.getElementById('dash-start-date').value;
   const endDate = document.getElementById('dash-end-date').value;
-  
+
   if (new Date(startDate) > new Date(endDate)) {
-      showToast('시작일이 종료일보다 늦을 수 없습니다.', 'error');
-      return;
+    showToast('시작일이 종료일보다 늦을 수 없습니다.', 'error');
+    return;
   }
-  
+
   loadAdminLogs({ startDate, endDate });
 }
 
 async function showAllLoginLogs(page = 1, params = {}) {
   showLoading();
   setPageTitle('로그인 상세 기록');
-  
+
   const result = await api('getLoginLogs', { page, pageSize: 20, ...params });
   if (!result.success) {
     showError(result.error);
