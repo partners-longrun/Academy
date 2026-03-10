@@ -1801,6 +1801,15 @@ async function loadAdminLogs(params = {}) {
     return;
   }
 
+  // 날짜 기본값 설정 (오늘)
+  const now = new Date();
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+  // params가 비어있는 경우(초기 진입) 기본값 설정
+  if (!params.startDate) params.startDate = todayStr;
+  if (!params.endDate) params.endDate = todayStr;
+  if (!params.preset) params.preset = 'today';
+
   setPageTitle('로그인 기록 대시보드');
   showLoading();
 
@@ -1819,12 +1828,11 @@ async function loadAdminLogs(params = {}) {
   const dashData = dashResult.data;
   const logs = logsResult.success ? logsResult.data : [];
 
-  // 날짜 기본값 설정 (오늘)
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  // 날짜 기본값 설정 (오늘) 제거 - 위에서 이미 선언됨
+  const currentTodayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
-  const startDate = params.startDate || today;
-  const endDate = params.endDate || today;
+  const startDate = params.startDate || currentTodayStr;
+  const endDate = params.endDate || currentTodayStr;
   const currentPreset = params.preset || 'today';
 
   // 시간대별 상위 3개 파악
