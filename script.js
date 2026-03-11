@@ -1235,7 +1235,7 @@ async function updatePostDetailFromServerOptimized(postId) {
 // function toggleLike(postId) { ... }
 
 // ========== 댓글 ==========
-async function submitComment(postId) {
+async function submitComment(postId, parentId = '') {
   const input = document.getElementById('comment-input');
   const btn = document.querySelector('.comment-submit'); // Simple selection since only one form usually
 
@@ -1298,6 +1298,7 @@ async function deleteComment(commentId) {
 
 // ========== 관리자: 게시판 관리 ==========
 async function loadAdminBoards() {
+  setBreadcrumb([]); // UI 잔상 방지를 위한 초기화
   if (!App.isAdmin) {
     showError('관리자 권한이 필요합니다.');
     return;
@@ -1475,6 +1476,7 @@ async function deleteBoard(boardId) {
 
 // ========== 관리자: 게시글 관리 ==========
 async function loadAdminPosts(page = 1) {
+  setBreadcrumb([]); // UI 잔상 방지를 위한 초기화
   if (!App.isAdmin) {
     showError('관리자 권한이 필요합니다.');
     return;
@@ -1796,6 +1798,7 @@ async function deletePost(postId) {
 // ========== 관리자: 로그인 기록 ==========
 // ========== 관리자: 로그인 기록 (대시보드 버전) ==========
 async function loadAdminLogs(params = {}) {
+  setBreadcrumb([]); // UI 잔상 방지를 위한 초기화
   if (!App.isAdmin) {
     showError('관리자 권한이 필요합니다.');
     return;
