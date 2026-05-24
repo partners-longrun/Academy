@@ -6,6 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="파트너스 아카데미 - 성공적인 영업을 위한 교육 플랫폼">
     <title>파트너스 아카데미</title>
+    
+    <script>
+        (function() {
+            var ua = navigator.userAgent.toLowerCase();
+            var isKakao = ua.indexOf('kakaotalk') > -1;
+            
+            if (isKakao) {
+                var url = window.location.href;
+                var isAndroid = ua.indexOf('android') > -1;
+                
+                if (isAndroid) {
+                    var cleanUrl = url.replace(/https?:/ + '/' + '/', '');
+                    var intentUrl = 'intent:' + '/' + '/' + cleanUrl + '#Intent;scheme=https;package=com.android.chrome;end';
+                    window.location.href = intentUrl;
+                } else {
+                    document.documentElement.classList.add('is-kakao-ios');
+                    window.isKakaoIos = true;
+                }
+            }
+        })();
+        
+        function closeKakaoIosGuide() {
+            document.documentElement.classList.remove('is-kakao-ios');
+            if (window.isKakaoIos) {
+                window.isKakaoIos = false;
+                if (typeof init === 'function') {
+                    init();
+                }
+            }
+        }
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -64,6 +96,44 @@
 </head>
 
 <body>
+    <!-- iOS 카카오톡 인앱 브라우저 Safari 유도 가이드 레이어 -->
+    <div id="kakao-ios-guide" class="kakao-ios-guide">
+        <div class="guide-overlay"></div>
+        <div class="guide-content-wrapper">
+            <div class="guide-arrow-container">
+                <div class="guide-arrow"></div>
+                <div class="guide-arrow-text">우측 상단 더보기(···)를 누르세요</div>
+            </div>
+            
+            <div class="guide-card">
+                <div class="guide-icon">✨</div>
+                <h2 class="guide-title">기본 브라우저로 이동 안내</h2>
+                <p class="guide-description">
+                    현재 <strong>카카오톡 인앱 브라우저</strong>에서는 홈 화면 앱 설치(PWA) 기능이 원활하지 않습니다. <br>
+                    안정적인 서비스 이용 및 모바일 앱 설치를 위해 <strong>Safari 브라우저</strong>에서 열어주세요.
+                </p>
+                
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <span class="step-num">1</span>
+                        <p class="step-text">우측 상단의 더보기(<span>···</span>) 아이콘을 클릭합니다.</p>
+                    </div>
+                    <div class="guide-step">
+                        <span class="step-num">2</span>
+                        <p class="step-text">메뉴에서 <strong>'Safari로 열기'</strong> 또는 <strong>'다른 브라우저로 열기'</strong>를 선택합니다.</p>
+                    </div>
+                </div>
+                
+                <div class="guide-pwa-benefit">
+                    <div class="benefit-badge">TIP</div>
+                    <p class="benefit-text">Safari에서 <strong>'홈 화면에 추가'</strong>를 실행하시면 모바일 앱처럼 편리하게 활용하실 수 있습니다.</p>
+                </div>
+                
+                <button type="button" class="guide-close-btn" onclick="closeKakaoIosGuide()">안내를 닫고 브라우저로 계속 보기</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 로딩 화면 -->
     <div id="loading-screen" class="loading-screen">
         <div class="loading-content">
