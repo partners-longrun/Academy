@@ -2906,3 +2906,253 @@ select {
         font-size: 9px;
     }
 }
+
+/* ========== iOS 카카오톡 Safari 안내 가이드 레이어 ========== */
+html.is-kakao-ios {
+    overflow: hidden !important; /* 가이드 레이어 작동 중 스크롤 방지 */
+}
+
+html.is-kakao-ios .kakao-ios-guide {
+    display: block;
+}
+
+.kakao-ios-guide {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100000; /* 전체 화면 중 최상단 */
+    overflow-y: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", sans-serif;
+}
+
+.kakao-ios-guide .guide-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.85); /* 짙은 Slate 색상의 불투명 배경 */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.kakao-ios-guide .guide-content-wrapper {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 2;
+}
+
+/* 화살표 가이드 (우측 상단 카카오톡 메뉴 버튼 유도) */
+.kakao-ios-guide .guide-arrow-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    animation: arrowBounce 1.5s infinite ease-in-out;
+}
+
+.kakao-ios-guide .guide-arrow {
+    width: 24px;
+    height: 48px;
+    border-right: 3px dashed var(--primary, #f47423);
+    border-top: 3px dashed var(--primary, #f47423);
+    border-top-right-radius: 12px;
+    position: relative;
+    margin-right: 12px;
+    margin-bottom: 8px;
+}
+
+/* 화살표의 뾰족한 부분 */
+.kakao-ios-guide .guide-arrow::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 10px solid var(--primary, #f47423);
+    transform: rotate(45deg);
+}
+
+.kakao-ios-guide .guide-arrow-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary, #f47423);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+}
+
+@keyframes arrowBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* 가이드 카드 */
+.kakao-ios-guide .guide-card {
+    background: rgba(30, 41, 59, 0.7); /* 글래스모피즘 어두운 카드 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 32px 24px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    text-align: center;
+}
+
+.kakao-ios-guide .guide-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    animation: pulseIcon 2s infinite;
+}
+
+@keyframes pulseIcon {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.kakao-ios-guide .guide-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+.kakao-ios-guide .guide-description {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.kakao-ios-guide .guide-description strong {
+    color: #ffffff;
+}
+
+/* 가이드 단계 리스트 */
+.kakao-ios-guide .guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.kakao-ios-guide .guide-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.kakao-ios-guide .guide-step .step-num {
+    background: var(--primary, #f47423);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.kakao-ios-guide .guide-step .step-text {
+    font-size: 13px;
+    color: #e2e8f0;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.kakao-ios-guide .guide-step .step-text span {
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.kakao-ios-guide .guide-step .step-text strong {
+    color: #f8fafc;
+}
+
+/* PWA 설치 혜택 박스 */
+.kakao-ios-guide .guide-pwa-benefit {
+    background: linear-gradient(135deg, rgba(244, 116, 35, 0.15) 0%, rgba(224, 101, 21, 0.05) 100%);
+    border: 1px solid rgba(244, 116, 35, 0.25);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.kakao-ios-guide .benefit-badge {
+    background: rgba(244, 116, 35, 0.2);
+    border: 1px solid rgba(244, 116, 35, 0.4);
+    color: var(--primary, #f47423);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.kakao-ios-guide .benefit-text {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.kakao-ios-guide .benefit-text strong {
+    color: #ffffff;
+}
+
+/* 가이드 닫기 버튼 */
+.kakao-ios-guide .guide-close-btn {
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.kakao-ios-guide .guide-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+}
+
+.kakao-ios-guide .guide-close-btn:active {
+    background: rgba(255, 255, 255, 0.05);
+}
