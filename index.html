@@ -17,7 +17,7 @@
                 var isAndroid = ua.indexOf('android') > -1;
                 
                 if (isAndroid) {
-                    var cleanUrl = url.replace(/https?:/ + '/' + '/', '');
+                    var cleanUrl = url.replace('https:' + '/' + '/', '').replace('http:' + '/' + '/', '');
                     var intentUrl = 'intent:' + '/' + '/' + cleanUrl + '#Intent;scheme=https;package=com.android.chrome;end';
                     window.location.href = intentUrl;
                 } else {
