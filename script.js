@@ -110,6 +110,11 @@ document.addEventListener('DOMContentLoaded', init);
 
 // [수정] init() 함수 - LocalCache 활용
 async function init() {
+  if (window.isKakaoIos) {
+    console.log('iOS KakaoTalk InApp browser detected. Init paused.');
+    return;
+  }
+
   console.log('App Initializing... Version: 2026-02-17 Mobile Video Fix Applied'); // [디버깅] 모바일 캐시 확인용 로그
   console.time('App Init'); // 성능 측정
 
