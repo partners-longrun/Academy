@@ -1162,13 +1162,17 @@ select {
     background: #000;
     border-radius: 16px;
     overflow: hidden;
-    aspect-ratio: 16/9;
     position: relative;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio 강제 */
+    height: 0;
     margin-bottom: 24px;
     box-shadow: var(--shadow-lg);
 }
 
 .video-player iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     border: none;
