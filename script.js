@@ -126,6 +126,7 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   App.deferredPrompt = e;
+  checkPwaInstallation();
   var installBtn = document.getElementById('pwa-install-btn');
   if (installBtn) {
     installBtn.style.opacity = '1';
@@ -133,12 +134,39 @@ window.addEventListener('beforeinstallprompt', function(e) {
   }
 });
 
+// [신규] PWA 설치 완료 이벤트 감지 (설치 완료 시 카드 숨김 및 상태 저장)
+window.addEventListener('appinstalled', function() {
+  console.log('PWA installed successfully');
+  localStorage.setItem('pwa-installed', 'true');
+  var installCard = document.getElementById('pwa-install-card');
+  if (installCard) {
+    installCard.style.display = 'none';
+  }
+});
+
+// [신규] PWA 설치 여부 확인하여 유도 카드 노출 여부 결정
+function checkPwaInstallation() {
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  var isIosStandalone = navigator.standalone;
+  var isLocalInstalled = localStorage.getItem('pwa-installed') === 'true';
+  
+  if (isStandalone || isIosStandalone || isLocalInstalled) {
+    var installCard = document.getElementById('pwa-install-card');
+    if (installCard) {
+      installCard.style.display = 'none';
+    }
+  }
+}
+
 // [수정] init() 함수 - LocalCache 활용
 async function init() {
   if (window.isKakaoIos) {
     console.log('iOS KakaoTalk InApp browser detected. Init paused.');
     return;
   }
+
+  // PWA 앱 설치 상태 확인 및 숨김 처리
+  checkPwaInstallation();
 
   console.log('App Initializing... Version: 2026-02-17 Mobile Video Fix Applied'); // [디버깅] 모바일 캐시 확인용 로그
   console.time('App Init'); // 성능 측정
