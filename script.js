@@ -102,11 +102,36 @@ const App = {
   boards: [],
   isAdmin: false,
   isFirstLogin: false,
-  historyStack: [] // Navigation history for "Back" functionality
+  historyStack: [], // Navigation history for "Back" functionality
+  deferredPrompt: null // [신규] PWA 설치 프롬프트 상태 저장
 };
 
 // ========== 초기화 ==========
 document.addEventListener('DOMContentLoaded', init);
+
+// [신규] PWA Service Worker 등록
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js')
+      .then(function(reg) {
+        console.log('ServiceWorker registered with scope: ', reg.scope);
+      })
+      .catch(function(err) {
+        console.warn('ServiceWorker registration failed: ', err);
+      });
+  });
+}
+
+// [신규] PWA beforeinstallprompt 이벤트 감지
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  App.deferredPrompt = e;
+  var installBtn = document.getElementById('pwa-install-btn');
+  if (installBtn) {
+    installBtn.style.opacity = '1';
+    installBtn.removeAttribute('disabled');
+  }
+});
 
 // [수정] init() 함수 - LocalCache 활용
 async function init() {
@@ -3041,3 +3066,54 @@ window.addEventListener('error', function (e) {
 window.addEventListener('unhandledrejection', function (e) {
   console.error('Unhandled promise rejection:', e.reason);
 });
+
+// ========== [신규] PWA 앱 설치 및 가이드 모달 제어 ==========
+async function installPwaApp() {
+  if (App.deferredPrompt) {
+    try {
+      App.deferredPrompt.prompt();
+      const choiceResult = await App.deferredPrompt.userChoice;
+      console.log('User PWA install choice:', choiceResult.outcome);
+      App.deferredPrompt = null;
+      
+      // 설치 진행 후 버튼 상태 업데이트
+      var installBtn = document.getElementById('pwa-install-btn');
+      if (installBtn) {
+        installBtn.style.opacity = '0.6';
+        installBtn.setAttribute('disabled', 'true');
+      }
+    } catch (err) {
+      console.error('PWA install prompt error:', err);
+      showPwaGuideModal();
+    }
+  } else {
+    // 프롬프트가 없는 브라우저 환경이거나 이미 설치된 경우 가이드 팝업 노출
+    showPwaGuideModal();
+  }
+}
+
+function showPwaGuideModal() {
+  var modal = document.getElementById('pwa-guide-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+}
+
+function closePwaGuideModal(event) {
+  if (event) {
+    if (event.stopPropagation) {
+      // 바깥 배경이나 닫기 버튼 클릭 시에만 모달이 닫히도록 예외 처리
+      if (event.target.id !== 'pwa-guide-modal') {
+        if (!event.target.classList.contains('modal-close')) {
+          if (event.target.tagName !== 'BUTTON') {
+            return;
+          }
+        }
+      }
+    }
+  }
+  var modal = document.getElementById('pwa-guide-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
