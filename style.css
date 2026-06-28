@@ -2705,10 +2705,8 @@ select {
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
-        width: 177.77% !important;   /* 가상 확장 */
-        height: 177.77% !important;  /* 가상 확장 */
-        transform: scale(0.5625) !important; /* 축소 피팅 */
-        transform-origin: 0 0 !important;
+        width: 100% !important;
+        height: 100% !important;
         border: none !important;
     }
 
@@ -3215,4 +3213,71 @@ html.is-kakao-ios .kakao-ios-guide {
         transform: scale(1) translateY(0);
         opacity: 1;
     }
+}
+
+/* ========== Mobile Video Play Card (Premium UI) ========== */
+.mobile-video-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 비율 */
+    height: 0;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+}
+
+.mobile-video-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(244, 116, 35, 0.15);
+    border-color: var(--primary);
+}
+
+.mobile-video-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.mobile-video-play-btn {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    padding-left: 4px; /* ▶ 삼각형 중앙 맞춤 */
+    box-shadow: 0 10px 25px rgba(244, 116, 35, 0.4);
+    margin-bottom: 16px;
+    transition: transform 0.2s;
+}
+
+.mobile-video-card:active .mobile-video-play-btn {
+    transform: scale(0.92);
+}
+
+.mobile-video-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+
+.mobile-video-subtext {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
 }

@@ -2345,22 +2345,38 @@ function renderVideoPlayer(post) {
 
   if (post.driveFileId) {
     if (post.driveFileType === 'video') {
-      // [수정] iframe 임베딩 방식으로 변경 (사용자 요청: 인라인 재생)
-      // 주의: '링크가 있는 모든 사용자에게 공개' 설정이 되어 있어야 함
-      console.log('Rendering inline video player for:', post.driveFileId);
-      return `
-        <div class="video-player">
-          <iframe 
-            src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
-            width="100%" 
-            height="100%" 
-            frameborder="0" 
-            scrolling="no" 
-            allow="autoplay; fullscreen" 
-            allowfullscreen>
-          </iframe>
-        </div>
-      `;
+      var isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent.toLowerCase());
+      
+      if (isMobileDevice) {
+        // [모바일 최적화] 모바일에서는 iframe 찌그러짐 및 조작계(터치 좌표 어긋남) 버그를 방지하기 위해, 
+        // 공식 구글 드라이브 앱 및 모바일 전체화면 뷰어 연동 카드 UI로 분기합니다.
+        var driveUrl = 'https://drive.google.com/file/d/' + post.driveFileId + '/view?usp=drivesdk';
+        return `
+          <div class="mobile-video-card" onclick="window.open('${driveUrl}', '_blank')">
+            <div class="mobile-video-overlay">
+              <div class="mobile-video-play-btn">▶</div>
+              <div class="mobile-video-text">모바일 전체화면으로 영상 재생</div>
+              <div class="mobile-video-subtext">구글 드라이브 앱 또는 모바일 전체 브라우저가 실행되어<br>배속 조절 및 재생바 이동을 100% 안정적으로 조작할 수 있습니다.</div>
+            </div>
+          </div>
+        `;
+      } else {
+        // [PC 최적화] PC 환경에서는 기존처럼 인라인 iframe 플레이어로 자연스럽게 렌더링
+        console.log('Rendering inline video player for PC:', post.driveFileId);
+        return `
+          <div class="video-player">
+            <iframe 
+              src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
+              width="100%" 
+              height="100%" 
+              frameborder="0" 
+              scrolling="no" 
+              allow="autoplay; fullscreen" 
+              allowfullscreen>
+            </iframe>
+          </div>
+        `;
+      }
     }
   }
   return '';
