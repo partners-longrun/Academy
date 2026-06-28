@@ -2348,15 +2348,15 @@ function renderVideoPlayer(post) {
       var isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent.toLowerCase());
       
       if (isMobileDevice) {
-        // [모바일 최적화] 모바일에서는 iframe 찌그러짐 및 조작계(터치 좌표 어긋남) 버그를 방지하기 위해, 
-        // 공식 구글 드라이브 앱 및 모바일 전체화면 뷰어 연동 카드 UI로 분기합니다.
-        var driveUrl = 'https://drive.google.com/file/d/' + post.driveFileId + '/view?usp=drivesdk';
+        // [모바일 최적화] 구글 로그인 요구 없이 전세계 유저가 안정적으로 100% 터치 컨트롤할 수 있도록, 
+        // 외부 전체화면 preview 창으로 연동되는 프리미엄 재생 유도 카드를 제공합니다.
+        var driveUrl = 'https://drive.google.com/file/d/' + post.driveFileId + '/preview';
         return `
           <div class="mobile-video-card" onclick="window.open('${driveUrl}', '_blank')">
             <div class="mobile-video-overlay">
               <div class="mobile-video-play-btn">▶</div>
-              <div class="mobile-video-text">모바일 전체화면으로 영상 재생</div>
-              <div class="mobile-video-subtext">구글 드라이브 앱 또는 모바일 전체 브라우저가 실행되어<br>배속 조절 및 재생바 이동을 100% 안정적으로 조작할 수 있습니다.</div>
+              <div class="mobile-video-text">모바일 화면으로 영상 재생</div>
+              <div class="mobile-video-subtext">구글 로그인 없이 누구라도 즉시 재생이 가능하며,<br>배속 조절 및 재생바 이동을 100% 안정적으로 조작할 수 있습니다.</div>
             </div>
           </div>
         `;
