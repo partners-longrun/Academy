@@ -134,10 +134,9 @@ window.addEventListener('beforeinstallprompt', function(e) {
   }
 });
 
-// [신규] PWA 설치 완료 이벤트 감지 (설치 완료 시 카드 숨김 및 상태 저장)
+// [신규] PWA 설치 완료 이벤트 감지 (설치 완료 시 카드 숨김)
 window.addEventListener('appinstalled', function() {
   console.log('PWA installed successfully');
-  localStorage.setItem('pwa-installed', 'true');
   var installCard = document.getElementById('pwa-install-card');
   if (installCard) {
     installCard.style.display = 'none';
@@ -148,9 +147,8 @@ window.addEventListener('appinstalled', function() {
 function checkPwaInstallation() {
   var isStandalone = window.matchMedia('(display-mode: standalone)').matches;
   var isIosStandalone = navigator.standalone;
-  var isLocalInstalled = localStorage.getItem('pwa-installed') === 'true';
   
-  if (isStandalone || isIosStandalone || isLocalInstalled) {
+  if (isStandalone || isIosStandalone) {
     var installCard = document.getElementById('pwa-install-card');
     if (installCard) {
       installCard.style.display = 'none';
@@ -164,6 +162,9 @@ async function init() {
     console.log('iOS KakaoTalk InApp browser detected. Init paused.');
     return;
   }
+
+  // 이전 구버전의 PWA 영구 설치 캐시가 저장되어 있다면 청소 (앱 삭제 감지용)
+  localStorage.removeItem('pwa-installed');
 
   // PWA 앱 설치 상태 확인 및 숨김 처리
   checkPwaInstallation();
