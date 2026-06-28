@@ -43,10 +43,10 @@
         }
     </script>
 
-    <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%ED%8C%8C%ED%8A%B8%EB%84%88%EC%8A%A4%20%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%22%2C%22short_name%22%3A%22%ED%8C%8C%ED%8A%B8%EB%84%88%EC%8A%A4%20%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%22%2C%22description%22%3A%22%ED%8C%8C%ED%8A%B8%EB%84%88%EC%8A%A4%20%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%20-%20%EC%85%B1%EA%B3%B5%EC%A0%81%EC%9D%B8%20%EC%98%81%EC%97%85%EC%9D%84%20%EC%9C%85%ED%95%9C%20%EA%B5%90%EC%9C%A1%20%ED%94%8C%EB%9E%A5%ED%8F%BC%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23171B31%22%2C%22theme_color%22%3A%22%23F37321%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon_192.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2fpng%22%7D%2C%7B%22src%22%3A%22icon_512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%20%22image%2fpng%22%7D%5D%7D">
+    <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%22%2C%22short_name%22%3A%22%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%22%2C%22description%22%3A%22%EC%95%84%EC%B9%B4%EB%8D%B0%EB%AF%B8%20-%20%EC%85%B1%EA%B3%B5%EC%A0%81%EC%9D%B8%20%EC%98%81%EC%97%85%EC%9D%84%20%EC%9C%85%ED%95%9C%20%EA%B5%90%EC%9C%A1%20%ED%94%8C%EB%9E%A5%ED%8F%BC%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23171B31%22%2C%22theme_color%22%3A%22%23F37321%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon_192.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2fpng%22%7D%2C%7B%22src%22%3A%22icon_512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%20%22image%2fpng%22%7D%5D%7D">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260628_v8">
+    <link rel="stylesheet" href="style.css?v=20260628_v9">
 
     <!-- Tailwind CSS & Custom Config -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -254,7 +254,7 @@
                         <div class="flex flex-col gap-2">
                             <button type="button" id="pwa-install-btn" onclick="installPwaApp()"
                                 class="w-full bg-primary hover:bg-primaryHover text-white font-bold py-3 px-4 rounded-xl transition duration-200 text-sm flex items-center justify-center gap-2">
-                                <span>+ 파트너스 아카데미 설치</span>
+                                <span>+ 아카데미 설치</span>
                             </button>
                             <button type="button" onclick="showPwaGuideModal()"
                                 class="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-xl border border-gray-200 transition duration-200 text-sm">
@@ -449,7 +449,7 @@
                         <span>안드로이드 (크롬 / 삼성 인터넷)</span>
                     </div>
                     <ul class="list-disc pl-5 space-y-1 text-gray-600 text-xs leading-relaxed">
-                        <li>상단의 <strong>'파트너스 아카데미 설치'</strong> 버튼을 클릭하면 즉시 설치됩니다.</li>
+                        <li>상단의 <strong>'아카데미 설치'</strong> 버튼을 클릭하면 즉시 설치됩니다.</li>
                         <li>만약 버튼이 보이지 않는다면, 우측 상단 메뉴(점 3개 또는 줄 3개)를 누르고 <strong>'홈 화면에 추가'</strong> 또는 <strong>'앱 설치'</strong>를 선택하세요.</li>
                     </ul>
                 </div>
@@ -486,7 +486,7 @@
     <!-- 토스트 메시지 -->
     <div id="toast-container"></div>
 
-    <script src="script.js?v=20260628_v8"></script>
+    <script src="script.js?v=20260628_v9"></script>
 </body>
 
 </html>
