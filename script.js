@@ -2345,38 +2345,19 @@ function renderVideoPlayer(post) {
 
   if (post.driveFileId) {
     if (post.driveFileType === 'video') {
-      var isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent.toLowerCase());
-      
-      if (isMobileDevice) {
-        // [모바일 최적화] 구글 로그인 요구 없이 전세계 유저가 안정적으로 100% 터치 컨트롤할 수 있도록, 
-        // 외부 전체화면 preview 창으로 연동되는 프리미엄 재생 유도 카드를 제공합니다.
-        var driveUrl = 'https://drive.google.com/file/d/' + post.driveFileId + '/preview';
-        return `
-          <div class="mobile-video-card" onclick="window.open('${driveUrl}', '_blank')">
-            <div class="mobile-video-overlay">
-              <div class="mobile-video-play-btn">▶</div>
-              <div class="mobile-video-text">모바일 화면으로 영상 재생</div>
-              <div class="mobile-video-subtext">구글 로그인 없이 누구라도 즉시 재생이 가능하며,<br>배속 조절 및 재생바 이동을 100% 안정적으로 조작할 수 있습니다.</div>
-            </div>
-          </div>
-        `;
-      } else {
-        // [PC 최적화] PC 환경에서는 기존처럼 인라인 iframe 플레이어로 자연스럽게 렌더링
-        console.log('Rendering inline video player for PC:', post.driveFileId);
-        return `
-          <div class="video-player">
-            <iframe 
-              src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
-              width="100%" 
-              height="100%" 
-              frameborder="0" 
-              scrolling="no" 
-              allow="autoplay; fullscreen" 
-              allowfullscreen>
-            </iframe>
-          </div>
-        `;
-      }
+      console.log('Rendering inline video player with robust inline styles for:', post.driveFileId);
+      return `
+        <div class="video-player" style="position: relative !important; padding-bottom: 56.25% !important; height: 0 !important; overflow: hidden !important; border-radius: 12px !important; background: #000 !important; margin-bottom: 20px !important; box-shadow: var(--shadow-lg) !important;">
+          <iframe 
+            src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
+            style="position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border: none !important;"
+            frameborder="0" 
+            scrolling="no" 
+            allow="autoplay; fullscreen" 
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
     }
   }
   return '';
