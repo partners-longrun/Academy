@@ -2345,12 +2345,12 @@ function renderVideoPlayer(post) {
 
   if (post.driveFileId) {
     if (post.driveFileType === 'video') {
-      console.log('Rendering inline video player with robust inline styles for:', post.driveFileId);
+      console.log('Rendering inline video player with header offset hide styles for:', post.driveFileId);
       return `
         <div class="video-player" style="position: relative !important; padding-bottom: 56.25% !important; height: 0 !important; overflow: hidden !important; border-radius: 12px !important; background: #000 !important; margin-bottom: 20px !important; box-shadow: var(--shadow-lg) !important;">
           <iframe 
             src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
-            style="position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border: none !important;"
+            style="position: absolute !important; top: -50px !important; left: 0 !important; width: 100% !important; height: calc(100% + 50px) !important; border: none !important;"
             frameborder="0" 
             scrolling="no" 
             allow="autoplay; fullscreen" 

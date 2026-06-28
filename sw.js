@@ -1,4 +1,4 @@
-const CACHE_NAME = 'partners-academy-v4';
+const CACHE_NAME = 'partners-academy-v5';
 const ASSETS = [
   './',
   './index.html',
