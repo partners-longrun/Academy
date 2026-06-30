@@ -246,7 +246,7 @@ async function init() {
   console.timeEnd('App Init'); // 성능 측정 종료
 }
 
-// ========== API 호출 (기존 유지) ==========
+// ========== API 호출 (credentials: 'omit' 적용 및 응답 검증) ==========
 function api(action, params = {}, sessionToken = null) {
   return new Promise((resolve) => {
     const token = sessionToken || App.sessionToken;
@@ -260,20 +260,38 @@ function api(action, params = {}, sessionToken = null) {
       console.warn('API_BASE_URL이 설정되지 않았습니다. script.js 맨 위의 URL을 설정해주세요.');
     }
 
+    // credentials: 'omit'을 설정하여 브라우저에 로그인된 구글 세션 쿠키가 GAS API 호출에 
+    // 간섭(리다이렉트 및 CORS 에러 유발)하는 것을 원천 방지합니다.
     fetch(API_BASE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
+      credentials: 'omit',
       body: JSON.stringify(payload)
     })
-      .then(response => response.json())
+      .then(async response => {
+        if (!response.ok) {
+          throw new Error(`HTTP status: ${response.status}`);
+        }
+        const contentType = response.headers.get('Content-Type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response received:', text);
+          throw new SyntaxError('HTML_RESPONSE');
+        }
+        return response.json();
+      })
       .then(result => {
         resolve(result);
       })
       .catch(error => {
         console.error('API Error:', error);
-        resolve({ success: false, error: '서버와 통신 중 오류가 발생했습니다.' });
+        let errorMsg = '서버와 통신 중 오류가 발생했습니다.';
+        if (error instanceof SyntaxError && error.message === 'HTML_RESPONSE') {
+          errorMsg = '서버가 올바르지 않은 응답을 반환했습니다. 다중 구글 계정 로그인 세션 충돌이거나 구글 임시 오류일 수 있으니, 시크릿 모드로 접속하거나 로그아웃 후 다시 시도해 주세요.';
+        }
+        resolve({ success: false, error: errorMsg });
       });
   });
 }
