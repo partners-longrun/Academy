@@ -296,6 +296,17 @@ function api(action, params = {}, sessionToken = null) {
   });
 }
 
+// ========== [신규] UUID 생성 헬퍼 (게시글 중복 방지용) ==========
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 
 // ========== 화면 전환 ==========
 function hideAllScreens() {
@@ -1632,6 +1643,9 @@ async function showPostModal(postId = null, btnEvent = null) {
     postId = null;
   }
 
+  // 신규 등록 시 중복 등록 방지를 위한 고유 ID 사전 발급
+  const clientPostId = postId || generateUUID();
+
   // 로딩 상태 표시
   let btn = null;
   let originalBtnText = '';
@@ -1725,7 +1739,7 @@ async function showPostModal(postId = null, btnEvent = null) {
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-          <button class="btn btn-primary" id="save-post-btn" onclick="savePost('${postId || ''}')">${post ? '수정' : '게시'}</button>
+          <button class="btn btn-primary" id="save-post-btn" onclick="savePost('${postId || ''}', '${clientPostId}')">${post ? '수정' : '게시'}</button>
         </div>
       </div>
     </div>
@@ -1748,7 +1762,7 @@ function extractGoogleDriveId(url) {
   return null;
 }
 
-async function savePost(postId) {
+async function savePost(postId, clientPostId) {
   const btn = document.getElementById('save-post-btn');
   if (btn.disabled) return; // 중복 클릭 방지
 
@@ -1792,9 +1806,17 @@ async function savePost(postId) {
     btn.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px;"></span> 처리 중...';
   }
 
+  const resetBtn = () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = postId ? '수정' : '게시';
+    }
+  };
+
   // 파일 첨부 유효성 검사
   if (fileUrl && !fileName) {
     showToast('첨부 파일의 이름을 입력해주세요.', 'error');
+    resetBtn();
     return;
   }
 
@@ -1803,6 +1825,7 @@ async function savePost(postId) {
     const attId = extractGoogleDriveId(fileUrl);
     if (!attId) {
       showToast('첨부 파일 URL 형식이 올바르지 않습니다.', 'error');
+      resetBtn();
       return;
     }
     attachments.push({
@@ -1818,13 +1841,10 @@ async function savePost(postId) {
 
   try {
     if (postId) {
-      // 수정 시 기존 로직 사용 (attachments 처리는 백엔드 확인 필요하지만, 일단 요청대로 구현)
-      // 주의: updatePost API가 attachments 추가를 지원하는지 여부는 PostService.gs에 달려있음. 
-      // 현재 PostService.gs의 updatePost는 attachments 업데이트 로직이 명시적으로 보이지 않음.
-      // 하지만 사용자는 주로 신규 작성에 초점을 맞추고 있음.
       result = await api('updatePost', { postId, boardId, title, content, driveFileId, driveFileType, youtubeUrl });
     } else {
-      result = await api('createPost', { boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
+      // clientPostId를 postId 파라미터로 전송
+      result = await api('createPost', { postId: clientPostId, boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
     }
 
     if (result.success) {
@@ -1840,15 +1860,12 @@ async function savePost(postId) {
         loadBoard(boardId);
       }
     } else {
-      // 실패 시 버튼 복구
       showToast(result.error, 'error');
-      btn.disabled = false;
-      btn.textContent = postId ? '수정' : '게시';
+      resetBtn();
     }
   } catch (e) {
     showToast('서버 통신 중 오류가 발생했습니다.', 'error');
-    btn.disabled = false;
-    btn.textContent = postId ? '수정' : '게시';
+    resetBtn();
   }
 }
 
