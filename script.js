@@ -246,7 +246,7 @@ async function init() {
   console.timeEnd('App Init'); // 성능 측정 종료
 }
 
-// ========== API 호출 (credentials: 'omit' 적용 및 응답 검증) ==========
+// ========== API 호출 (캐시 버스팅 적용 및 응답 검증) ==========
 function api(action, params = {}, sessionToken = null) {
   return new Promise((resolve) => {
     const token = sessionToken || App.sessionToken;
@@ -260,14 +260,15 @@ function api(action, params = {}, sessionToken = null) {
       console.warn('API_BASE_URL이 설정되지 않았습니다. script.js 맨 위의 URL을 설정해주세요.');
     }
 
-    // credentials: 'omit'을 설정하여 브라우저에 로그인된 구글 세션 쿠키가 GAS API 호출에 
-    // 간섭(리다이렉트 및 CORS 에러 유발)하는 것을 원천 방지합니다.
-    fetch(API_BASE_URL, {
+    // 캐시 방지 및 다중 로그인 세션 꼬임 방지를 위해 요청 URL 뒤에 고유 난수를 추가합니다.
+    const requestUrl = API_BASE_URL + (API_BASE_URL.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+
+    // credentials: 'omit' 명시 시 구글 리다이렉트가 404로 거절되는 구글 스펙 한계를 예방하기 위해 옵션을 생략합니다.
+    fetch(requestUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
-      credentials: 'omit',
       body: JSON.stringify(payload)
     })
       .then(async response => {
