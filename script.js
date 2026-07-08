@@ -744,9 +744,8 @@ async function loadDashboard() {
   // 약간의 딜레이를 주어 UI가 완전히 그려진 후 걷어냄
   setTimeout(() => {
     hideDashboardLoading();
-    // [신규] 홈 화면 렌더링 후 백그라운드에서 게시글 상세 요약 데이터 및 게시판 목록 사전 캐싱
-    prefetchHomePosts(data);
-    prefetchBoardLists(data);
+    // [개선] 동시 API 요청 한계를 유발하는 백그라운드 프리페치(데이터 사전 로드)를 전면 제거하여
+    // 구글 앱스 스크립트 서버의 과부하 및 통신 단절을 차단합니다.
   }, 300);
 
   console.timeEnd('loadDashboard');
@@ -815,24 +814,22 @@ async function prefetchHomePosts(dashboardData) {
 
   console.log(`Prefetching ${allRecentPosts.length} posts for instant access...`);
 
-  // 순차적으로 호출하여 서버 부하 방지
+  // 순차적으로 호출하여 서버 부하 방지 (await 추가)
   for (const post of allRecentPosts) {
     const cacheKey = `post_detail_${post.postId}`;
-    // 이미 상세 정보가 캐시되어 있으면 건너뜀 (게시판 목록이나 최근 공지 등에서 캐시됐을 수 있음)
     if (LocalCache.get(cacheKey)) continue;
 
     try {
       // 1초 간격으로 요청 (GAS 속도 제한 고려)
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      api('getPostById', { postId: post.postId }).then(result => {
-        if (result.success) {
-          LocalCache.set(cacheKey, result.data, 10); // 10분간 상세 정보 캐싱
-          console.log(`Prefetched post detail: ${post.postId}`);
-        }
-      }).catch(e => console.warn(`Prefetch failed for post ${post.postId}`, e));
+      const result = await api('getPostById', { postId: post.postId });
+      if (result.success) {
+        LocalCache.set(cacheKey, result.data, 10); // 10분간 상세 정보 캐싱
+        console.log(`Prefetched post detail: ${post.postId}`);
+      }
     } catch (e) {
-      console.warn('Prefetch loop error', e);
+      console.warn(`Prefetch failed for post ${post.postId}`, e);
     }
   }
 }
@@ -848,21 +845,19 @@ async function prefetchBoardLists(dashboardData) {
 
   for (const board of boards) {
     const cacheKey = `posts_${board.boardId}_page1`;
-    // 이미 캐시되어 있으면 건너뜀
     if (LocalCache.get(cacheKey)) continue;
 
     try {
-      // 1.5초 간격으로 요청 (상세 정보 prefetch와 겹칠 수 있으므로 조금 더 여유 있게)
+      // 1.5초 간격으로 요청
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      api('getPosts', { boardId: board.boardId, page: 1, pageSize: 12 }).then(result => {
-        if (result.success) {
-          LocalCache.set(cacheKey, result, 5); // 5분간 목록 캐싱
-          console.log(`Prefetched board list: ${board.boardName}`);
-        }
-      }).catch(e => console.warn(`Prefetch failed for board ${board.boardName}`, e));
+      const result = await api('getPosts', { boardId: board.boardId, page: 1, pageSize: 12 });
+      if (result.success) {
+        LocalCache.set(cacheKey, result, 5); // 5분간 목록 캐싱
+        console.log(`Prefetched board list: ${board.boardName}`);
+      }
     } catch (e) {
-      console.warn('Board list prefetch loop error', e);
+      console.warn(`Prefetch failed for board ${board.boardName}`, e);
     }
   }
 }
