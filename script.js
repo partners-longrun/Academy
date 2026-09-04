@@ -192,13 +192,14 @@ async function init() {
       App.user = result.data.user;
       App.isAdmin = result.data.user.role === '관리자' || result.data.user.role === '지사대표';
 
-      // [최적화] 캐시된 게시판이 있으면 즉시 사용
-      if (cachedBoards && cachedBoards.length > 0) {
-        App.boards = cachedBoards;
-        console.log('Using cached boards');
-      } else {
-        App.boards = result.data.boards || [];
-        LocalCache.set('boards', App.boards, 30); // 30분 캐싱
+      // [초고속 최적화] 서버에서 번들링되어 온 게시판 목록 및 대시보드 데이터 즉시 적재
+      App.boards = result.data.boards || cachedBoards || [];
+      LocalCache.set('boards', App.boards, 30);
+      sessionStorage.setItem('boardList', JSON.stringify(App.boards));
+
+      if (result.data.dashboardData) {
+        App.initialDashboardData = result.data.dashboardData;
+        LocalCache.set('dashboard', result.data.dashboardData, 5);
       }
 
       // [신규] 최신 공지사항 사전 캐싱 (모달 즉시 로딩용)
@@ -219,9 +220,6 @@ async function init() {
       } catch (e) {
         console.error('Notice prefetch error:', e);
       }
-
-      // 세션 스토리지에도 저장 (호환성)
-      sessionStorage.setItem('boardList', JSON.stringify(App.boards));
 
       // 최초 로그인 체크
       if (result.data.user.isFirstLogin) {
@@ -401,7 +399,7 @@ async function handleLogin(e) {
   // showDashboardLoading(); 
 
   try {
-    const result = await api('login', { employeeId, password });
+    const result = await api('login', { employeeId, password, includeInitialData: true });
 
     if (result.success) {
       App.sessionToken = result.sessionToken;
@@ -409,18 +407,28 @@ async function handleLogin(e) {
       App.isAdmin = result.user.role === '관리자' || result.user.role === '지사대표';
       App.isFirstLogin = result.user.isFirstLogin || false;
 
+      // [초고속 최적화] 로그인 시 함께 번들링된 초기 데이터 즉시 캐싱
+      if (result.initialData) {
+        if (result.initialData.boards) {
+          App.boards = result.initialData.boards;
+          LocalCache.set('boards', App.boards, 30);
+          sessionStorage.setItem('boardList', JSON.stringify(App.boards));
+        }
+        if (result.initialData.dashboardData) {
+          App.initialDashboardData = result.initialData.dashboardData;
+          LocalCache.set('dashboard', result.initialData.dashboardData, 5);
+        }
+      }
+
       if (rememberMe) {
         localStorage.setItem('sessionToken', result.sessionToken);
       } else {
         sessionStorage.setItem('sessionToken', result.sessionToken);
       }
 
-      // [신규] 로그인 성공 직후 로딩 오버레이 표시 (블랭크 페이지 방지)
-      showDashboardLoading();
-
       // 최초 로그인 체크
       if (result.user.isFirstLogin) {
-        hideDashboardLoading(); // 비밀번호 변경 모달은 로딩 끔
+        hideDashboardLoading();
         showChangePasswordModal(true);
       } else {
         showApp();
@@ -681,9 +689,29 @@ async function loadDashboard() {
   setPageTitle('파트너스 <span style="color:var(--primary)">아카데미</span>');
   setBreadcrumb([]);
 
-  const container = document.getElementById('page-container');
+  // 1. [초고속 최적화] 사용 가능한 데이터(초기 번들 또는 로컬 캐시) 확인
+  let data = App.initialDashboardData || LocalCache.get('dashboard');
 
-  // 게시판과 동일한 skeleton-list 방식으로 로딩 표시
+  if (data) {
+    App.initialDashboardData = null; // 1회 사용 후 초기화
+    renderDashboard(data);
+    hideDashboardLoading();
+
+    // 백그라운드 SWR (Stale-While-Revalidate) 조용한 갱신
+    setTimeout(async () => {
+      const result = await api('getDashboardData');
+      if (result.success && App.currentPage === 'dashboard') {
+        LocalCache.set('dashboard', result.data, 5);
+        renderDashboard(result.data);
+      }
+    }, 200);
+
+    console.timeEnd('loadDashboard');
+    return;
+  }
+
+  // 2. 캐시가 전혀 없는 경우에만 스켈레톤 표시 후 API 호출
+  const container = document.getElementById('page-container');
   const skeletonItems = Array(5).fill('').map(() => `
     <div class="skeleton-item">
       <div class="skeleton-line title"></div>
@@ -699,55 +727,18 @@ async function loadDashboard() {
     </div>
   `;
 
-  let data;
-
-  // [최적화] 로컬 캐시 확인
-  const cachedDashboard = LocalCache.get('dashboard');
-
-  if (cachedDashboard) {
-    console.log('Using cached dashboard');
-    data = cachedDashboard;
-
-    // 캐시된 데이터로 즉시 렌더링
-    renderDashboard(data);
-
-    // [최적화] 백그라운드에서 데이터 업데이트
-    setTimeout(async () => {
-      const result = await api('getDashboardData');
-      if (result.success && App.currentPage === 'dashboard') {
-        LocalCache.set('dashboard', result.data, 5); // 5분 캐싱
-        renderDashboard(result.data); // 최신 데이터로 업데이트
-      }
-    }, 100);
-  } else {
-    // [최적화] 초기 로딩 시 받아온 데이터가 있으면 그것을 사용
-    if (App.initialDashboardData) {
-      data = App.initialDashboardData;
-      App.initialDashboardData = null;
-      LocalCache.set('dashboard', data, 5);
-    } else {
-      // 평소대로 API 호출
-      const result = await api('getDashboardData');
-      if (!result.success) {
-        showError(result.error);
-        hideDashboardLoading(); // [신규] 에러 시 로딩 숨김
-        console.timeEnd('loadDashboard');
-        return;
-      }
-      data = result.data;
-      LocalCache.set('dashboard', data, 5); // 5분 캐싱
-    }
-
-    renderDashboard(data);
+  const result = await api('getDashboardData');
+  if (!result.success) {
+    showError(result.error);
+    hideDashboardLoading();
+    console.timeEnd('loadDashboard');
+    return;
   }
 
-  // [신규] 대시보드 렌더링 완료 후 로딩 오버레이 숨김
-  // 약간의 딜레이를 주어 UI가 완전히 그려진 후 걷어냄
-  setTimeout(() => {
-    hideDashboardLoading();
-    // [개선] 동시 API 요청 한계를 유발하는 백그라운드 프리페치(데이터 사전 로드)를 전면 제거하여
-    // 구글 앱스 스크립트 서버의 과부하 및 통신 단절을 차단합니다.
-  }, 300);
+  data = result.data;
+  LocalCache.set('dashboard', data, 5);
+  renderDashboard(data);
+  hideDashboardLoading();
 
   console.timeEnd('loadDashboard');
 }
@@ -1906,20 +1897,18 @@ async function loadAdminLogs(params = {}) {
   setPageTitle('로그인 기록 대시보드');
   showLoading();
 
-  // 대시보드 데이터 및 최근 로그 동시 요청
-  const [dashResult, logsResult] = await Promise.all([
-    api('getLoginDashboardData', params),
-    api('getLoginLogs', { page: 1, pageSize: 15, ...params })
-  ]);
+  // [초고속 최적화] 대시보드 데이터 및 최근 로그를 1회의 통합 API로 조회 (시트 중복 열기 제거)
+  const combinedResult = await api('getAdminLoginCombined', params);
 
-  if (!dashResult.success) {
-    showError(dashResult.error || '데이터를 불러오는 중 오류가 발생했습니다.');
+  if (!combinedResult.success) {
+    showError(combinedResult.error || '데이터를 불러오는 중 오류가 발생했습니다.');
     return;
   }
 
   const container = document.getElementById('page-container');
-  const dashData = dashResult.data;
-  const logs = logsResult.success ? logsResult.data : [];
+  const dashData = combinedResult.data;
+  const logs = dashData.logs || [];
+  const logsPagination = dashData.pagination || { total: 0 };
 
   // 날짜 기본값 설정 (오늘) 제거 - 위에서 이미 선언됨
   const currentTodayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
@@ -1968,7 +1957,7 @@ async function loadAdminLogs(params = {}) {
       </div>
       <div class="stat-card">
         <div class="stat-label">조회 기간내 로그인</div>
-        <div class="stat-value">${logsResult.pagination ? logsResult.pagination.total : '-'}</div>
+        <div class="stat-value">${logsPagination && logsPagination.total !== undefined ? logsPagination.total : '-'}</div>
       </div>
     </div>
 
