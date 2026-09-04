@@ -163,85 +163,87 @@ async function init() {
     return;
   }
 
-  // 이전 구버전의 PWA 영구 설치 캐시가 저장되어 있다면 청소 (앱 삭제 감지용)
-  localStorage.removeItem('pwa-installed');
+  try {
+    // 이전 구버전의 PWA 영구 설치 캐시가 저장되어 있다면 청소 (앱 삭제 감지용)
+    localStorage.removeItem('pwa-installed');
 
-  // PWA 앱 설치 상태 확인 및 숨김 처리
-  checkPwaInstallation();
+    // PWA 앱 설치 상태 확인 및 숨김 처리
+    checkPwaInstallation();
 
-  console.log('App Initializing... Version: 2026-02-17 Mobile Video Fix Applied'); // [디버깅] 모바일 캐시 확인용 로그
-  console.time('App Init'); // 성능 측정
+    console.log('App Initializing... Version: 2026-09-04 Fast Loading');
+    console.time('App Init'); // 성능 측정
 
-  // 만료된 캐시 정리
-  LocalCache.clearExpired();
+    // 만료된 캐시 정리
+    LocalCache.clearExpired();
 
-  // 저장된 세션 확인
-  var savedToken = localStorage.getItem('sessionToken');
-  if (!savedToken) {
-    savedToken = sessionStorage.getItem('sessionToken');
-  }
+    // 저장된 세션 확인
+    var savedToken = localStorage.getItem('sessionToken');
+    if (!savedToken) {
+      savedToken = sessionStorage.getItem('sessionToken');
+    }
 
-  if (savedToken) {
-    // [최적화] 게시판 목록 로컬 캐시 확인
-    const cachedBoards = LocalCache.get('boards');
+    if (savedToken) {
+      // [최적화] 게시판 목록 로컬 캐시 확인
+      const cachedBoards = LocalCache.get('boards');
 
-    var result = await api('getInitialData', {}, savedToken);
+      var result = await api('getInitialData', {}, savedToken);
 
-    if (result.success) {
-      App.sessionToken = savedToken;
-      App.user = result.data.user;
-      App.isAdmin = result.data.user.role === '관리자' || result.data.user.role === '지사대표';
+      if (result && result.success && result.data && result.data.user) {
+        App.sessionToken = savedToken;
+        App.user = result.data.user;
+        App.isAdmin = result.data.user.role === '관리자' || result.data.user.role === '지사대표';
 
-      // [초고속 최적화] 서버에서 번들링되어 온 게시판 목록 및 대시보드 데이터 즉시 적재
-      App.boards = result.data.boards || cachedBoards || [];
-      LocalCache.set('boards', App.boards, 30);
-      sessionStorage.setItem('boardList', JSON.stringify(App.boards));
+        // [초고속 최적화] 서버에서 번들링되어 온 게시판 목록 및 대시보드 데이터 즉시 적재
+        App.boards = result.data.boards || cachedBoards || [];
+        LocalCache.set('boards', App.boards, 30);
+        sessionStorage.setItem('boardList', JSON.stringify(App.boards));
 
-      if (result.data.dashboardData) {
-        App.initialDashboardData = result.data.dashboardData;
-        LocalCache.set('dashboard', result.data.dashboardData, 5);
-      }
-
-      // [신규] 최신 공지사항 사전 캐싱 (모달 즉시 로딩용)
-      try {
-        const noticeBoard = App.boards ? App.boards.find(b => b.boardName === '공지사항') : null;
-        if (noticeBoard) {
-          const cacheKey = `posts_${noticeBoard.boardId}_page1`;
-          const cachedPosts = LocalCache.get(cacheKey);
-          if (!cachedPosts || !cachedPosts.data || cachedPosts.data.length === 0) {
-            // 백그라운드 비동기로 최신 공지사항 1개 미리 불러오기
-            api('getPosts', { boardId: noticeBoard.boardId, page: 1, pageSize: 1 }).then(res => {
-              if (res.success && res.data && res.data.length > 0) {
-                LocalCache.set(cacheKey, res, 5); // 5분 캐싱
-              }
-            }).catch(e => console.error('Prefetch notice failed', e));
-          }
+        if (result.data.dashboardData) {
+          App.initialDashboardData = result.data.dashboardData;
+          LocalCache.set('dashboard', result.data.dashboardData, 5);
         }
-      } catch (e) {
-        console.error('Notice prefetch error:', e);
-      }
 
-      // 최초 로그인 체크
-      if (result.data.user.isFirstLogin) {
-        showLogin();
-        showChangePasswordModal(true);
+        // [신규] 최신 공지사항 사전 캐싱 (모달 즉시 로딩용)
+        try {
+          const noticeBoard = App.boards ? App.boards.find(b => b.boardName === '공지사항') : null;
+          if (noticeBoard) {
+            const cacheKey = `posts_${noticeBoard.boardId}_page1`;
+            const cachedPosts = LocalCache.get(cacheKey);
+            if (!cachedPosts || !cachedPosts.data || cachedPosts.data.length === 0) {
+              api('getPosts', { boardId: noticeBoard.boardId, page: 1, pageSize: 1 }).then(res => {
+                if (res.success && res.data && res.data.length > 0) {
+                  LocalCache.set(cacheKey, res, 5);
+                }
+              }).catch(e => console.error('Prefetch notice failed', e));
+            }
+          }
+        } catch (e) {
+          console.error('Notice prefetch error:', e);
+        }
+
+        // 최초 로그인 체크
+        if (result.data.user.isFirstLogin) {
+          showLogin();
+          showChangePasswordModal(true);
+        } else {
+          showApp();
+        }
       } else {
-        showApp();
+        localStorage.removeItem('sessionToken');
+        sessionStorage.removeItem('sessionToken');
+        LocalCache.clear();
+        showLogin();
       }
     } else {
-      localStorage.removeItem('sessionToken');
-      sessionStorage.removeItem('sessionToken');
-      LocalCache.clear(); // 캐시도 초기화
       showLogin();
     }
-  } else {
+  } catch (initError) {
+    console.error('App init critical error:', initError);
     showLogin();
+  } finally {
+    hideDashboardLoading();
+    console.timeEnd('App Init');
   }
-
-  // [신규] 앱 초기화 완료 후 로딩 오버레이 제거 (혹시 남아있다면)
-  hideDashboardLoading();
-
-  console.timeEnd('App Init'); // 성능 측정 종료
 }
 
 // ========== API 호출 (캐시 버스팅 적용 및 응답 검증) ==========
@@ -317,8 +319,8 @@ function hideAllScreens() {
   const sidebarOverlay = document.getElementById('sidebar-overlay');
   if (sidebarOverlay) sidebarOverlay.remove();
 
-  // [신규] 대시보드 로딩 오버레이 숨김 (화면 전환 시 안전장치)
-  // hideDashboardLoading(); // 주석 처리: 명시적으로 닫을 때만 닫히도록 변경
+  // [안전장치] 대시보드 로딩 오버레이도 즉시 숨김
+  hideDashboardLoading();
 
   // 모달 정리
   document.getElementById('modal-container').innerHTML = '';
@@ -357,11 +359,9 @@ function showApp() {
       var navData = JSON.parse(savedNav);
       navigateTo(navData.page, navData.params || {});
     } catch (e) {
-      showDashboardLoading(); // [신규] 대시보드 로드 시작 시 로딩 표시
       loadDashboard();
     }
   } else {
-    showDashboardLoading(); // [신규] 대시보드 로드 시작 시 로딩 표시
     loadDashboard();
   }
 }
@@ -542,22 +542,15 @@ function showDashboardLoading() {
     document.body.appendChild(overlay);
   }
 
-  // 약간의 딜레이 후 표시 (DOM 렌더링 확보)
-  requestAnimationFrame(() => {
-    overlay.classList.add('visible');
-  });
+  overlay.style.display = 'flex';
+  overlay.classList.add('visible');
 }
 
 function hideDashboardLoading() {
   const overlay = document.getElementById('dashboard-loading-overlay');
   if (overlay) {
     overlay.classList.remove('visible');
-    // 애니메이션 종료 후 제거하지 않고 숨기기만 함 (재사용)
-    setTimeout(() => {
-      if (!overlay.classList.contains('visible')) {
-        // overlay.remove(); // 제거하지 않고 유지
-      }
-    }, 300);
+    overlay.style.display = 'none';
   }
 }
 
