@@ -1179,12 +1179,14 @@ async function renderPostDetail(post) {
         </div>
       ` : ''}
 
+      <div id="post-content-section">
       ${post.content ? `
         <div class="content-card">
           <h3>📝 내용</h3>
           <div class="post-content">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
         </div>
       ` : ''}
+      </div>
       
       <div id="attachments-section">
       ${attachments.length > 0 ? `
@@ -1235,9 +1237,24 @@ async function renderPostDetail(post) {
 }
 
 /**
- * [신규] 서버 응답으로 첨부파일/댓글 영역만 부분 갱신 (전체 재렌더링 X)
+ * [신규] 서버 응답으로 내용/첨부파일/댓글 영역 부분 갱신 (전체 재렌더링 X)
  */
 function updatePostDetailFromServer(serverPost) {
+  // 본문(내용) 영역 갱신
+  const contentSection = document.getElementById('post-content-section');
+  if (contentSection) {
+    if (serverPost.content) {
+      contentSection.innerHTML = `
+        <div class="content-card">
+          <h3>📝 내용</h3>
+          <div class="post-content">${escapeHtml(serverPost.content).replace(/\n/g, '<br>')}</div>
+        </div>
+      `;
+    } else {
+      contentSection.innerHTML = '';
+    }
+  }
+
   // 첨부파일 영역 갱신
   const attachmentsSection = document.getElementById('attachments-section');
   if (attachmentsSection) {
@@ -1651,6 +1668,12 @@ async function showPostModal(postId = null, btnEvent = null) {
   // 게시판 목록
   const boards = App.boards || [];
 
+  // 기존 첨부파일 정보 추출 (첫 번째 첨부파일)
+  const firstAttachment = post && post.attachments && post.attachments.length > 0 ? post.attachments[0] : null;
+  const existingFileUrl = firstAttachment && firstAttachment.driveFileId ? `https://drive.google.com/file/d/${firstAttachment.driveFileId}/view` : '';
+  const existingFileName = firstAttachment ? firstAttachment.fileName : '';
+  const existingFileType = firstAttachment ? firstAttachment.fileType : 'pdf';
+
   const html = `
     <div class="modal-overlay"> <!-- onclick removed -->
       <div class="modal modal-lg" onclick="event.stopPropagation()">
@@ -1693,26 +1716,26 @@ async function showPostModal(postId = null, btnEvent = null) {
           
           <div class="form-group">
             <label class="form-label">📁 파일 첨부 (구글 드라이브 공유 링크 URL)</label>
-             <input type="text" class="form-input" id="modal-post-file-url" placeholder="예: https://drive.google.com/file/d/FILE_ID/view?usp=sharing">
+             <input type="text" class="form-input" id="modal-post-file-url" value="${escapeHtml(existingFileUrl)}" placeholder="예: https://drive.google.com/file/d/FILE_ID/view?usp=sharing">
              <small style="color:var(--text-secondary);font-size:12px;margin-top:4px;">* 첨부할 파일의 전체 URL을 입력하세요</small>
           </div>
 
           <!-- 6. 파일 이름 -->
           <div class="form-group">
             <label class="form-label">파일 이름 (확장자 포함)</label>
-            <input type="text" class="form-input" id="modal-post-file-name" placeholder="예: 1강 교안.pdf">
+            <input type="text" class="form-input" id="modal-post-file-name" value="${escapeHtml(existingFileName)}" placeholder="예: 1강 교안.pdf">
           </div>
 
           <!-- 7. 파일 유형 -->
           <div class="form-group">
              <label class="form-label">파일 유형</label>
              <select class="form-input" id="modal-post-file-type">
-                <option value="pdf">PDF</option>
-                <option value="presentation">파워포인트 (PPT)</option>
-                <option value="spreadsheet">엑셀 (Excel)</option>
-                <option value="document">워드 (Word)</option>
-                <option value="image">이미지</option>
-                <option value="other">기타</option>
+                <option value="pdf" ${existingFileType === 'pdf' ? 'selected' : ''}>PDF</option>
+                <option value="presentation" ${existingFileType === 'presentation' ? 'selected' : ''}>파워포인트 (PPT)</option>
+                <option value="spreadsheet" ${existingFileType === 'spreadsheet' ? 'selected' : ''}>엑셀 (Excel)</option>
+                <option value="document" ${existingFileType === 'document' ? 'selected' : ''}>워드 (Word)</option>
+                <option value="image" ${existingFileType === 'image' ? 'selected' : ''}>이미지</option>
+                <option value="other" ${existingFileType === 'other' ? 'selected' : ''}>기타</option>
              </select>
           </div>
 
@@ -1821,7 +1844,7 @@ async function savePost(postId, clientPostId) {
 
   try {
     if (postId) {
-      result = await api('updatePost', { postId, boardId, title, content, driveFileId, driveFileType, youtubeUrl });
+      result = await api('updatePost', { postId, boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
     } else {
       // clientPostId를 postId 파라미터로 전송
       result = await api('createPost', { postId: clientPostId, boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
@@ -1831,6 +1854,9 @@ async function savePost(postId, clientPostId) {
       // [추가] 캐시 무효화
       LocalCache.remove(`posts_${boardId}_page1`);
       LocalCache.remove('dashboard');
+      if (postId) {
+        LocalCache.remove(`post_detail_${postId}`);
+      }
 
       showToast(postId ? '게시글이 수정되었습니다.' : '게시되었습니다.', 'success');
       closeModal();
@@ -2995,6 +3021,18 @@ async function showLatestNotice(e) {
     document.getElementById('modal-container').innerHTML = '';
     showToast('등록된 공지사항이 없습니다.', 'info');
     return;
+  }
+
+  // 본문 내용이 비어있는 경우(getPosts 경량화 목록 등) 전체 상세 정보 가져오기
+  if (!latestPost.content && latestPost.postId) {
+    try {
+      const detailResult = await api('getPostById', { postId: latestPost.postId });
+      if (detailResult.success && detailResult.data) {
+        latestPost = detailResult.data;
+      }
+    } catch (e) {
+      console.warn('Failed to load full notice content:', e);
+    }
   }
 
   // 3. 팝업(모달) 렌더링 - 높이 축소 및 너비 확대
