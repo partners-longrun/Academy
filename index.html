@@ -99,10 +99,67 @@
             cursor: pointer;
             box-sizing: border-box;
         }
+
+        /* Splash Screen Progress Animation */
+        .splash-progress-bar {
+            width: 30%;
+            animation: splashProgress 1.6s ease-in-out infinite;
+        }
+
+        @keyframes splashProgress {
+            0% {
+                transform: translateX(-100%);
+                width: 20%;
+            }
+            50% {
+                width: 60%;
+            }
+            100% {
+                transform: translateX(350%);
+                width: 20%;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <!-- Login Welcome Splash Screen (파트너스 보드와 동일한 테마) -->
+    <div id="login-splash"
+        class="fixed inset-0 z-[200] hidden opacity-0 transition-opacity duration-300 ease-out bg-gradient-to-br from-[#0B0F19] via-[#1B1F3B] to-[#0A0D1E] flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden">
+        <!-- Ambient background glows -->
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none animate-pulse" style="animation-delay: 1s;"></div>
+        
+        <div class="relative z-10 flex flex-col items-center max-w-sm w-full animate-fadeIn">
+            <!-- Header Brand -->
+            <div class="flex items-center gap-2 mb-8 opacity-80">
+                <span class="inline-block w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                <span class="text-xs font-semibold tracking-widest text-slate-300 uppercase">PARTNERS ACADEMY</span>
+            </div>
+
+            <!-- Main Slogan -->
+            <div class="space-y-2 mb-10">
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight leading-normal py-1.5 px-2 bg-gradient-to-r from-orange-400 via-amber-200 to-orange-500 bg-clip-text text-transparent drop-shadow-sm inline-block">
+                    Long-Run Together!
+                </h2>
+                <p class="text-sm text-slate-300 font-light tracking-wide">
+                    함께 멀리 가는 파트너스본부
+                </p>
+            </div>
+
+            <!-- Loading Indicator & Progress Bar -->
+            <div class="w-full max-w-xs flex flex-col items-center gap-4">
+                <div class="w-full max-w-[220px] h-1.5 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-white/5 shadow-inner">
+                    <div class="splash-progress-bar h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"></div>
+                </div>
+                <p id="splash-status-text" class="text-xs sm:text-sm font-medium text-slate-300 tracking-wide flex items-center justify-center gap-2 whitespace-nowrap">
+                    <span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0"></span>
+                    데이터를 준비하고 있습니다...
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- iOS 카카오톡 인앱 브라우저 Safari 유도 가이드 레이어 -->
     <div id="kakao-ios-guide" class="kakao-ios-guide">
         <div class="guide-overlay"></div>
@@ -487,7 +544,7 @@
     <!-- 토스트 메시지 -->
     <div id="toast-container"></div>
 
-    <script src="script.js?v=20260911_fix"></script>
+    <script src="script.js?v=20260912_splash"></script>
 </body>
 
 </html>

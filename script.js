@@ -310,7 +310,7 @@ function generateUUID() {
 
 
 // ========== 화면 전환 ==========
-function hideAllScreens() {
+function hideAllScreens(keepSplash = false) {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'none';
@@ -319,8 +319,10 @@ function hideAllScreens() {
   const sidebarOverlay = document.getElementById('sidebar-overlay');
   if (sidebarOverlay) sidebarOverlay.remove();
 
-  // [안전장치] 대시보드 로딩 오버레이도 즉시 숨김
-  hideDashboardLoading();
+  // [안전장치] 대시보드 로딩 오버레이 정리 (keepSplash가 아닐 때만)
+  if (!keepSplash) {
+    hideDashboardLoading();
+  }
 
   // 모달 정리
   document.getElementById('modal-container').innerHTML = '';
@@ -332,8 +334,8 @@ function showLogin() {
   setupLoginHandlers();
 }
 
-function showApp() {
-  hideAllScreens();
+function showApp(keepSplash = false) {
+  hideAllScreens(keepSplash);
   document.getElementById('app-screen').style.display = 'flex';
   updateUserProfile();
   setupAppHandlers();
@@ -364,6 +366,13 @@ function showApp() {
   } else {
     loadDashboard();
   }
+
+  // 스플래시 화면이 켜져 있는 상태라면 홈 화면이 렌더링된 후 부드럽게 페이드 아웃
+  if (keepSplash) {
+    setTimeout(() => {
+      showLoginSplash(false);
+    }, 350);
+  }
 }
 
 
@@ -388,15 +397,14 @@ async function handleLogin(e) {
     return;
   }
 
-  // 버튼 비활성화
+  // 버튼 비활성화 및 로딩 상태 표시
   loginBtn.disabled = true;
   loginBtn.querySelector('.btn-text').style.display = 'none';
   loginBtn.querySelector('.btn-loading').style.display = 'inline';
   errorDiv.style.display = 'none';
 
-  // [신규] 대시보드 로딩 오버레이 미리 표시 (로그인 성공 시 자연스러운 전환을 위해)
-  // 투명하게 시작해서 로그인 성공 시 나타나게 함, 실패하면 숨김
-  // showDashboardLoading(); 
+  // [UX 개선] "Long-Run Together!" 스플래시 로딩 화면 즉시 표시
+  showLoginSplash(true, '인증 및 데이터를 준비하고 있습니다...');
 
   try {
     const result = await api('login', { employeeId, password, includeInitialData: true });
@@ -428,12 +436,14 @@ async function handleLogin(e) {
 
       // 최초 로그인 체크
       if (result.user.isFirstLogin) {
-        hideDashboardLoading();
+        showLoginSplash(false);
         showChangePasswordModal(true);
       } else {
-        showApp();
+        // 스플래시 화면을 유지한 채 홈 화면을 백그라운드에서 띄우고, 렌더링 완료 후 부드럽게 페이드 아웃
+        showApp(true);
       }
     } else {
+      showLoginSplash(false);
       // 디버깅 정보는 콘솔에만 출력하고 사용자에게는 보여주지 않음
       if (result.debug) {
         console.log('Login Debug info:', result.debug);
@@ -441,6 +451,7 @@ async function handleLogin(e) {
       showLoginError(result.error);
     }
   } catch (error) {
+    showLoginSplash(false);
     showLoginError('로그인 처리 중 오류가 발생했습니다.');
   } finally {
     loginBtn.disabled = false;
@@ -528,30 +539,38 @@ function showSearchLoading() {
   }
 }
 
+// ========== [신규] 전체 화면 "Long-Run Together!" 스플래시 로딩 (파트너스 보드 동일 테마) ==========
+function showLoginSplash(show, statusText) {
+  const splash = document.getElementById('login-splash');
+  if (!splash) return;
+  if (statusText) {
+    const textEl = document.getElementById('splash-status-text');
+    if (textEl) {
+      textEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0"></span> ${statusText}`;
+    }
+  }
+  if (show) {
+    splash.classList.remove('hidden');
+    // Force reflow for CSS opacity transition
+    void splash.offsetWidth;
+    splash.classList.remove('opacity-0');
+    splash.classList.add('opacity-100');
+  } else {
+    splash.classList.remove('opacity-100');
+    splash.classList.add('opacity-0');
+    setTimeout(() => {
+      splash.classList.add('hidden');
+    }, 300);
+  }
+}
+
 // ========== [신규] 대시보드 로딩 오버레이 관리 ==========
 function showDashboardLoading() {
-  let overlay = document.getElementById('dashboard-loading-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dashboard-loading-overlay';
-    overlay.className = 'dashboard-loading-overlay';
-    overlay.innerHTML = `
-      <div class="dashboard-loading-spinner"></div>
-      <div class="dashboard-loading-text">파트너스 아카데미 데이터를 불러오는 중...</div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
-  overlay.style.display = 'flex';
-  overlay.classList.add('visible');
+  showLoginSplash(true, '데이터를 불러오는 중입니다...');
 }
 
 function hideDashboardLoading() {
-  const overlay = document.getElementById('dashboard-loading-overlay');
-  if (overlay) {
-    overlay.classList.remove('visible');
-    overlay.style.display = 'none';
-  }
+  showLoginSplash(false);
 }
 
 function toggleSidebar() {
