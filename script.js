@@ -170,7 +170,7 @@ async function init() {
     // PWA 앱 설치 상태 확인 및 숨김 처리
     checkPwaInstallation();
 
-    console.log('App Initializing... Version: 2026-09-04 Fast Loading');
+    console.log('App Initializing... Version: 2026-09-11 Fixed');
     console.time('App Init'); // 성능 측정
 
     // 만료된 캐시 정리
@@ -1841,16 +1841,17 @@ async function savePost(postId, clientPostId) {
   let result;
   // YouTube URL은 더 이상 사용하지 않음 (빈 문자열 전달)
   const youtubeUrl = '';
+  const contentType = driveFileId ? 'video' : (attachments.length > 0 ? 'file' : 'text');
 
   try {
     if (postId) {
-      result = await api('updatePost', { postId, boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
+      result = await api('updatePost', { postId, boardId, title, content, contentType, driveFileId, driveFileType, youtubeUrl, attachments });
     } else {
       // clientPostId를 postId 파라미터로 전송
-      result = await api('createPost', { postId: clientPostId, boardId, title, content, driveFileId, driveFileType, youtubeUrl, attachments });
+      result = await api('createPost', { postId: clientPostId, boardId, title, content, contentType, driveFileId, driveFileType, youtubeUrl, attachments });
     }
 
-    if (result.success) {
+    if (result && result.success) {
       // [추가] 캐시 무효화
       LocalCache.remove(`posts_${boardId}_page1`);
       LocalCache.remove('dashboard');
@@ -1866,11 +1867,12 @@ async function savePost(postId, clientPostId) {
         loadBoard(boardId);
       }
     } else {
-      showToast(result.error, 'error');
+      showToast((result && result.error) ? result.error : '서버와 통신 중 오류가 발생했습니다.', 'error');
       resetBtn();
     }
   } catch (e) {
-    showToast('서버 통신 중 오류가 발생했습니다.', 'error');
+    console.error('savePost Exception:', e);
+    showToast('서버 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
     resetBtn();
   }
 }
