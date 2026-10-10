@@ -1,7 +1,8 @@
-const CACHE_NAME = 'partners-academy-v12';
+const CACHE_NAME = 'partners-academy-v13';
 const ASSETS = [
   './',
   './index.html',
+  './manifest.json',
   './script.js',
   './style.css',
   './icon_192.png',
@@ -39,14 +40,14 @@ self.addEventListener('fetch', function(e) {
   
   // 외부 API(구글 Apps Script 등) 또는 외부 도메인 리소스는 서비스 워커 캐싱에서 제외하고 바이패스(bypass)합니다.
   if (url.origin !== self.location.origin) {
-    return; // respondWith를 호출하지 않으면 브라우저가 기본 네트워크 요청으로 직접 처리합니다.
+    return;
   }
 
   e.respondWith(
     fetch(e.request).catch(function() {
-      return caches.match(e.request).then(function(response) {
+      // 쿼리 스트링(?v=...) 차이로 인한 캐시 미스를 방지하기 위해 ignoreSearch: true 적용
+      return caches.match(e.request, { ignoreSearch: true }).then(function(response) {
         if (!response) {
-          // 캐시에도 없다면 브라우저 본래의 네트워크 에러를 정상적으로 발생시켜 TypeError를 방지합니다.
           return Promise.reject(new Error('Network request failed and no cache available'));
         }
         return response;

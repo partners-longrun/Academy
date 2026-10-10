@@ -2406,11 +2406,13 @@ function renderVideoPlayer(post) {
 
   if (post.driveFileId) {
     if (post.driveFileType === 'video') {
-      console.log('Rendering inline video player with header offset hide styles for:', post.driveFileId);
+      const safeDriveId = String(post.driveFileId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!safeDriveId) return '';
+      console.log('Rendering inline video player with header offset hide styles for:', safeDriveId);
       return `
         <div class="video-player" style="position: relative !important; padding-bottom: 56.25% !important; height: 0 !important; overflow: hidden !important; border-radius: 12px !important; background: #000 !important; margin-bottom: 20px !important; box-shadow: var(--shadow-lg) !important;">
           <iframe 
-            src="https://drive.google.com/file/d/${post.driveFileId}/preview" 
+            src="https://drive.google.com/file/d/${safeDriveId}/preview" 
             style="position: absolute !important; top: -50px !important; left: 0 !important; width: 100% !important; height: calc(100% + 50px) !important; border: none !important;"
             frameborder="0" 
             scrolling="no" 
@@ -2425,14 +2427,15 @@ function renderVideoPlayer(post) {
 }
 
 function renderAttachment(att) {
-  var driveUrl = 'https:' + '/' + '/drive.google.com/file/d/' + att.driveFileId + '/view';
-  return '<div class="attachment-item" onclick="window.open(\'' + driveUrl + '\', \'_blank\')">' +
+  const safeFileId = String(att.driveFileId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const driveUrl = safeFileId ? 'https://drive.google.com/file/d/' + safeFileId + '/view' : '#';
+  return '<a href="' + driveUrl + '" target="_blank" rel="noopener noreferrer" class="attachment-item" style="text-decoration:none;color:inherit;cursor:pointer;">' +
     '<div class="attachment-info">' +
-    '<div class="attachment-name">' + escapeHtml(att.fileName) + '<' + '/div>' +
-    '<div class="attachment-size">' + formatFileSize(att.fileSize) + '<' + '/div>' +
-    '<' + '/div>' +
-    '<button class="attachment-download">다운로드<' + '/button>' +
-    '<' + '/div>';
+    '<div class="attachment-name">' + escapeHtml(att.fileName) + '</div>' +
+    '<div class="attachment-size">' + formatFileSize(att.fileSize) + '</div>' +
+    '</div>' +
+    '<button type="button" class="attachment-download" tabindex="-1">다운로드</button>' +
+    '</a>';
 }
 
 function renderComments(comments) {
